@@ -1,0 +1,45 @@
+import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client'
+import { setContext } from '@apollo/client/link/context'
+import { onError } from '@apollo/client/link/error'
+import { getToken } from './auth'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _client: ApolloClient | null = null
+
+function buildClient() {
+  const httpLink = createHttpLink({
+    uri: `${process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'}/api/graphql`,
+  })
+
+  // v4 legacy setter: (operation, prevContext) => updatedContext
+  const authLink = setContext((_op, prevContext) => {
+    const token = getToken()
+    const prev = prevContext as { headers?: Record<string, string> }
+    return {
+      headers: {
+        ...(prev.headers ?? {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  })
+
+  const errorLink = onError(({ error }) => {
+    if (typeof window !== 'undefined' && error?.message?.includes('UNAUTHENTICATED')) {
+      window.location.href = '/'
+    }
+    if (error) console.error('[Apollo error]', error)
+  })
+
+  return new ApolloClient({
+    link: from([errorLink, authLink, httpLink]),
+    cache: new InMemoryCache(),
+    defaultOptions: {
+      watchQuery: { fetchPolicy: 'cache-and-network' },
+    },
+  })
+}
+
+export function getApolloClient() {
+  if (!_client) _client = buildClient()
+  return _client
+}
