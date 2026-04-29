@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SyncState {
+  IDLE
+  SYNCING
+  ERROR
+}
+
+// ─── Identity Context ─────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  name         String?
+  githubId     String   @unique
+  githubToken  String   // AES-256-GCM encrypted
+  avatarUrl    String?
+  plan         Plan     @default(FREE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  repositories  Repository[]
+  dailyMetrics  DailyMetrics[]
+  streak        Streak?
+  weeklyDigests WeeklyDigest[]
+
+  @@map("users")
+}
+
+// ─── Analytics Context ────────────────────────────────────────────────────────
+
+model Repository {
+  id           String     @id @default(cuid())
+  userId       String
+  githubRepoId String
+  fullName     String     // "owner/repo"
+  language     String?
+  isTracked    Boolean    @default(true)
+  syncState    SyncState  @default(IDLE)
+  lastSyncedAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyMetrics DailyMetrics[]
+  webhooks     Webhook[]
+
+  @@unique([userId, githubRepoId])
+  @@index([userId, isTracked])
+  @@map("repositories")
+}
+
+model DailyMetrics {
+  id           String    @id @default(cuid())
+  userId       String
+  repoId       String?
+  date         DateTime  @db.Date
+  commits      Int       @default(0)
+  additions    Int       @default(0)
+  deletions    Int       @default(0)
+  prsOpened    Int       @default(0)
+  prsMerged    Int       @default(0)
+  reviewsDone  Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository   Repository? @relation(fields: [repoId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, repoId, date])
+  @@index([userId, date])
+  @@index([repoId, date])
+  @@map("daily_metrics")
+}
+
+model Streak {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  lastActiveDate DateTime? @db.Date
+  freezesUsed    Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("streaks")
+}
+
+// ─── Notifications Context ────────────────────────────────────────────────────
+
+model WeeklyDigest {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime @db.Date // always a Monday
+  summary   Json     // DigestSummary shape
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, sentAt])
+  @@map("weekly_digests")
+}
+
+// ─── Infrastructure ───────────────────────────────────────────────────────────
+
+model Webhook {
+  id           String   @id @default(cuid())
+  repoId       String
+  githubHookId String
+  events       String[]
+  secret       String   // HMAC secret for signature verification
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  repository   Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([repoId, githubHookId])
+  @@map("webhooks")
+}
