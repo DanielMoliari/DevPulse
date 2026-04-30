@@ -27,11 +27,11 @@
 
 ```
 ┌──────────────┐        ┌─────────────────────────────┐
-│              │        │       NestJS API :3001        │
+│              │        │       NestJS API :17642        │
 │   Browser    │──────▶ │  (Fastify + GraphQL/REST)    │
 │              │        │                               │
 │  Next.js     │        │  ┌─────────────────────────┐ │
-│  :3000       │        │  │  Bounded Contexts        │ │
+│  :38929       │        │  │  Bounded Contexts        │ │
 │              │        │  │  · Identity              │ │
 │  Apollo      │        │  │  · Analytics             │ │
 │  Client      │        │  │  · Notifications         │ │
@@ -63,13 +63,13 @@ docker compose up -d        # postgres + redis
 pnpm install
 pnpm --filter api exec prisma migrate deploy
 pnpm --filter api seed      # optional: load demo data
-pnpm dev                    # web :3000 + api :3001
+pnpm dev                    # web :38929 + api :17642
 ```
 
 Once running:
-- Dashboard: http://localhost:3000
-- API (GraphQL Playground): http://localhost:3001/api/graphql
-- API (Swagger / REST docs): http://localhost:3001/api/docs
+- Dashboard: http://localhost:38929
+- API (GraphQL Playground): http://localhost:17642/api/graphql
+- API (Swagger / REST docs): http://localhost:17642/api/docs
 
 ---
 
@@ -87,8 +87,8 @@ Copy `.env.example` to `.env` and fill in the required values.
 | `GITHUB_CALLBACK_URL` | yes | Must match the callback URL registered in your GitHub OAuth App |
 | `JWT_SECRET` | yes | Long random string used to sign JWTs; change in production |
 | `JWT_EXPIRES_IN` | — | Token TTL, e.g. `7d` (default) |
-| `PORT` | — | API server port (default `3001`) |
-| `ALLOWED_ORIGINS` | — | CORS allowed origins, comma-separated (e.g. `http://localhost:3000`) |
+| `PORT` | — | API server port (default `17642`) |
+| `ALLOWED_ORIGINS` | — | CORS allowed origins, comma-separated (e.g. `http://localhost:38929`) |
 | `NEXT_PUBLIC_API_URL` | yes | Full URL of the API as seen by the browser |
 | `NEXTAUTH_URL` | yes | Canonical URL of the Next.js app |
 | `NEXTAUTH_SECRET` | yes | NextAuth.js secret; change in production |

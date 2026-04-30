@@ -38,7 +38,7 @@ services:
       context: .
       dockerfile: packages/api/Dockerfile
     ports:
-      - "3001:3001"
+      - "17642:17642"
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://devpulse:devpulse@postgres:5432/devpulse
@@ -49,8 +49,8 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-32-char-key-change-in-prod!!}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:38929}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:17642}
     depends_on:
       postgres:
         condition: service_healthy

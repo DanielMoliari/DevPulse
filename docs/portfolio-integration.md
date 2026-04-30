@@ -418,7 +418,7 @@ pnpm --filter api seed
 # 3. Inicie a aplicação
 pnpm dev
 
-# Acesse http://localhost:3000
+# Acesse http://localhost:38929
 # Login: clique "Sign in with GitHub" com sua conta real
 #        OU use a URL de callback direta com token demo (ver abaixo)
 ```
@@ -534,13 +534,13 @@ pnpm dev
 - [ ] Botão "Sign in with GitHub" com ícone visível
 - [ ] Background/design da landing visível (gradient, partículas, ou o que foi implementado)
 - [ ] Sem modal de login aberto
-- [ ] URL: `localhost:3000` (limpa)
+- [ ] URL: `localhost:38929` (limpa)
 
 ---
 
 ### Screenshot 7 — `graphiql-playground.png`
 
-**Página:** `http://localhost:3001/api/graphql` (GraphiQL playground da API)  
+**Página:** `http://localhost:17642/api/graphql` (GraphiQL playground da API)  
 **Prioridade:** ⭐ Nice-to-have  
 **Uso:** demonstra a API para devs, diferencial técnico
 

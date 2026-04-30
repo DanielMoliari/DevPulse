@@ -8,7 +8,7 @@ let _client: ApolloClient | null = null
 
 function buildClient() {
   const httpLink = createHttpLink({
-    uri: `${process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'}/api/graphql`,
+    uri: `${process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:17642'}/api/graphql`,
   })
 
   // v4 legacy setter: (operation, prevContext) => updatedContext

@@ -28,8 +28,8 @@ export class AuthController {
   ): Promise<void> {
     const { accessToken } = await this.identityService.loginWithGitHub(req.user)
     const frontendUrl = process.env['NEXT_PUBLIC_API_URL']
-      ?.replace(':3001', ':3000')
-      ?? 'http://localhost:3000'
+      ?.replace(':17642', ':38929')
+      ?? 'http://localhost:38929'
     await reply.redirect(`${frontendUrl}/auth/callback?token=${accessToken}`)
   }
 

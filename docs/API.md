@@ -6,9 +6,9 @@ DevPulse exposes two API surfaces:
 1. **GraphQL** — primary interface for the web dashboard (queries + mutations)
 2. **REST** — webhook endpoint for GitHub push events and a minimal auth flow
 
-Base URL: `http://localhost:3001/api/v1`
-Swagger docs: `http://localhost:3001/api/docs`
-GraphQL playground: `http://localhost:3001/api/graphql`
+Base URL: `http://localhost:17642/api/v1`
+Swagger docs: `http://localhost:17642/api/docs`
+GraphQL playground: `http://localhost:17642/api/graphql`
 
 ---
 

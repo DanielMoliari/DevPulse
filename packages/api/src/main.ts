@@ -15,7 +15,7 @@ async function bootstrap() {
   )
 
   app.enableCors({
-    origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:3000'],
+    origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:38929'],
     credentials: true,
   })
 
@@ -41,7 +41,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig)
   SwaggerModule.setup('api/docs', app, document)
 
-  const port = process.env['PORT'] ?? 3001
+  const port = process.env['PORT'] ?? 17642
   await app.listen(Number(port), '0.0.0.0')
   logger.log(`API running on http://localhost:${port}`)
   logger.log(`GraphQL playground: http://localhost:${port}/api/graphql`)

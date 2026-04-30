@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Zap, GitCommit, Flame, BarChart3, GitPullRequest, ArrowRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:17642'
 
 const FEATURES = [
   {

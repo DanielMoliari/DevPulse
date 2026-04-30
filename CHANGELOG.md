@@ -16,7 +16,7 @@ All notable changes to DevPulse are documented here. Format follows [Keep a Chan
 - Streaks page — current/longest streak display, full-year contribution calendar
 - Repositories page — track/untrack repos, on-demand sync
 - Settings page — profile, connected accounts, notification preferences
-- Multi-stage Dockerfile for production API (non-root, port 3001)
+- Multi-stage Dockerfile for production API (non-root, port 17642)
 - Docker Compose for local development (PostgreSQL 16, Redis 7, API)
 - Demo seed script — 180 days of realistic developer metrics with active 23-day streak
 - Vitest unit tests for streak calculator and analytics domain
