@@ -7,11 +7,15 @@ import { Heatmap } from '@/components/heatmap'
 import { ActivityChart } from '@/components/activity-chart'
 import { ActivityRadial } from '@/components/activity-radial'
 import { StreakBadge } from '@/components/streak-badge'
+import { HourlyActivity } from '@/components/hourly-activity'
+import { TechGraduationCard } from '@/components/tech-graduation-card'
+import { ShareProfileButton } from '@/components/share-profile-button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY } from '@/graphql/queries'
-import type { DailyMetrics, StreakData, HeatmapDay } from '@/graphql/types'
+import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY } from '@/graphql/queries'
+import type { DailyMetrics, StreakData, HeatmapDay, Insights } from '@/graphql/types'
 import { getTrend } from '@/lib/utils'
+import { Coffee, Sparkles, Clock } from 'lucide-react'
 
 type Range = 'week' | 'month' | 'all'
 const RANGES: { label: string; value: Range; kpiLabel: string; chartLabel: string }[] = [
@@ -60,6 +64,7 @@ export default function DashboardPage() {
   })
   const { data: streakData, loading: streakLoading } = useQuery<{ streak: StreakData }>(STREAK_QUERY)
   const { data: heatmapData, loading: heatmapLoading } = useQuery<{ heatmap: HeatmapDay[] }>(HEATMAP_QUERY)
+  const { data: insightsData, loading: insightsLoading } = useQuery<{ insights: Insights }>(INSIGHTS_QUERY)
 
   const metrics = metricsData?.metrics ?? []
   const prev = prevData?.metrics ?? []
@@ -84,18 +89,21 @@ export default function DashboardPage() {
       {/* Range selector */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-base font-semibold text-slate-100">Overview</h2>
-        <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
-          {RANGES.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => setRange(value)}
-              className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                range === value ? 'bg-surface-2 text-slate-100' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
+            {RANGES.map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => setRange(value)}
+                className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  range === value ? 'bg-surface-2 text-slate-100' : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <ShareProfileButton />
         </div>
       </div>
 
@@ -160,6 +168,9 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Personal insights — what the user can't get from GitHub natively */}
+      <PersonalInsights insights={insightsData?.insights} loading={insightsLoading} />
+
       {/* Recent activity chart */}
       <Card>
         <CardHeader>
@@ -217,4 +228,139 @@ export default function DashboardPage() {
       </div>
     </div>
   )
+}
+
+// ─── Personal insights ──────────────────────────────────────────────────────
+// Three signals you can't get from GitHub Insights:
+//   1. Productive-hour heatmap (when *you* commit, in UTC)
+//   2. Burnout warning (only shown when atRisk = true; supportive tone, never alarmist)
+//   3. Tech graduation moments (auto-detected language transitions over the years)
+function PersonalInsights({ insights, loading }: { insights: Insights | undefined; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <h2 className="font-display text-base font-semibold text-slate-100">Personal insights</h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
+          <Skeleton className="h-[220px] rounded-xl" />
+          <Skeleton className="h-[220px] rounded-xl" />
+        </div>
+      </div>
+    )
+  }
+  if (!insights) return null
+
+  const { hourlyActivity, burnout, techGraduations } = insights
+  const hasHourly = !!hourlyActivity && hourlyActivity.hours.some((n) => n > 0)
+  const hasBurnout = !!burnout && burnout.atRisk
+  const hasGraduations = techGraduations.length > 0
+  if (!hasHourly && !hasBurnout && !hasGraduations) return null
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-base font-semibold text-slate-100">Personal insights</h2>
+        <span className="text-[11px] uppercase tracking-widest text-slate-600">
+          things GitHub won&apos;t tell you
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
+        {/* Productive hours */}
+        {hasHourly ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-3.5 w-3.5 text-accent" /> Productive hours
+              </CardTitle>
+              <p className="mt-1 text-xs text-slate-500">
+                When you actually commit · all-time, UTC
+              </p>
+            </CardHeader>
+            <CardContent>
+              <HourlyActivity hours={hourlyActivity.hours} peakHour={hourlyActivity.peakHour} />
+              <div className="mt-3 flex items-center justify-between text-[11px]">
+                <span className="text-slate-500">
+                  Peak at <span className="tabular font-semibold text-accent">{formatHour(hourlyActivity.peakHour)}</span>
+                </span>
+                <span className="tabular text-slate-600">
+                  {hourlyActivity.peakRatio.toFixed(1)}× the average hour
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="hidden lg:block" />
+        )}
+
+        {/* Burnout — only when at risk; supportive copy */}
+        {hasBurnout && (
+          <Card className="relative overflow-hidden border-orange-500/30 bg-gradient-to-br from-orange-500/5 to-surface">
+            <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-300">
+                <Coffee className="h-3.5 w-3.5" /> A gentle nudge
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm leading-relaxed text-slate-200">{burnout.message}</p>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="flex gap-3 text-[11px] text-slate-500">
+                  <span>
+                    <span className="tabular font-semibold text-slate-200">{burnout.consecutiveDays}d</span> straight
+                  </span>
+                  <span className="text-slate-700">·</span>
+                  <span>
+                    net lines{' '}
+                    <span className="tabular font-semibold text-orange-300">
+                      {burnout.netLinesTrend > 0 ? '+' : ''}{burnout.netLinesTrend}%
+                    </span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="cursor-pointer rounded-md border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-200 transition-colors hover:bg-orange-500/20"
+                >
+                  Take a day off?
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Tech graduations — horizontal scroll of from→to cards */}
+      {hasGraduations && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-accent" /> Tech graduations
+            </CardTitle>
+            <p className="mt-1 text-xs text-slate-500">
+              Language transitions detected from your repo history
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border-2 [&::-webkit-scrollbar-track]:bg-transparent">
+              {techGraduations.map((g) => (
+                <TechGraduationCard
+                  key={`${g.from}-${g.to}-${g.year}`}
+                  from={g.from}
+                  to={g.to}
+                  year={g.year}
+                  message={g.message}
+                  confidence={g.confidence}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </section>
+  )
+}
+
+function formatHour(h: number): string {
+  const period = h < 12 ? 'AM' : 'PM'
+  const display = h % 12 === 0 ? 12 : h % 12
+  return `${display}${period} UTC`
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation } from '@apollo/client/react'
-import { Save, AlertTriangle, Mail, Bell, GitBranch } from 'lucide-react'
+import { Save, AlertTriangle, Mail, Bell, GitBranch, Send, Globe, Copy, Check, ExternalLink } from 'lucide-react'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -11,7 +11,14 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ME_QUERY } from '@/graphql/queries'
-import { UPDATE_PROFILE } from '@/graphql/mutations'
+import {
+  UPDATE_PROFILE,
+  UPDATE_NOTIFICATION_PREFS,
+  SEND_TEST_DIGEST,
+  ENABLE_PUBLIC_PROFILE,
+  UPDATE_PUBLIC_PROFILE_PREFS,
+  DISABLE_PUBLIC_PROFILE,
+} from '@/graphql/mutations'
 import type { User } from '@/graphql/types'
 import { clearToken } from '@/lib/auth'
 
@@ -20,12 +27,28 @@ export default function SettingsPage() {
   const [updateProfile, { loading: saving }] = useMutation(UPDATE_PROFILE, {
     refetchQueries: [ME_QUERY],
   })
+  const [updateNotificationPrefs, { loading: savingPrefs }] = useMutation(UPDATE_NOTIFICATION_PREFS, {
+    refetchQueries: [ME_QUERY],
+  })
+  const [sendTestDigest, { loading: sendingTest }] = useMutation(SEND_TEST_DIGEST)
+  const [enablePublicProfile, { loading: enablingPublic }] = useMutation<
+    { enablePublicProfile: User },
+    { input: { username: string } }
+  >(ENABLE_PUBLIC_PROFILE, { refetchQueries: [ME_QUERY] })
+  const [updatePublicPrefs] = useMutation(UPDATE_PUBLIC_PROFILE_PREFS, { refetchQueries: [ME_QUERY] })
+  const [disablePublicProfile, { loading: disablingPublic }] = useMutation(DISABLE_PUBLIC_PROFILE, {
+    refetchQueries: [ME_QUERY],
+  })
 
   const user = data?.me
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [weeklyDigest, setWeeklyDigest] = useState(true)
   const [streakAlerts, setStreakAlerts] = useState(true)
+  const [testDigestState, setTestDigestState] = useState<'idle' | 'sent' | 'error'>('idle')
+  const [usernameDraft, setUsernameDraft] = useState('')
+  const [usernameError, setUsernameError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   // Populate form when user data loads
   if (user && name === '' && email === '') {
@@ -33,13 +56,84 @@ export default function SettingsPage() {
     if (user.email) setEmail(user.email)
   }
 
+  // Sync notification toggles from server once user loads
+  useEffect(() => {
+    if (!user) return
+    setWeeklyDigest(user.notificationsEnabled)
+    setStreakAlerts(user.streakAlertsEnabled)
+  }, [user])
+
   function handleSave() {
     void updateProfile({ variables: { input: { name: name || undefined, email: email || undefined } } })
+  }
+
+  function handleToggleWeeklyDigest(next: boolean) {
+    setWeeklyDigest(next)
+    void updateNotificationPrefs({ variables: { input: { notificationsEnabled: next } } })
+  }
+
+  function handleToggleStreakAlerts(next: boolean) {
+    setStreakAlerts(next)
+    void updateNotificationPrefs({ variables: { input: { streakAlertsEnabled: next } } })
+  }
+
+  async function handleSendTestDigest() {
+    try {
+      await sendTestDigest()
+      setTestDigestState('sent')
+    } catch {
+      setTestDigestState('error')
+    }
+    setTimeout(() => setTestDigestState('idle'), 4000)
   }
 
   function handleDisconnect() {
     clearToken()
     window.location.href = '/'
+  }
+
+  // ── Public profile handlers ─────────────────────────────────────────────
+  const USERNAME_RE = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/i
+  async function handleEnablePublic() {
+    const candidate = usernameDraft.trim().toLowerCase()
+    if (candidate.length < 3 || candidate.length > 30 || !USERNAME_RE.test(candidate)) {
+      setUsernameError('3-30 chars, alphanumeric or dash, no leading/trailing dash.')
+      return
+    }
+    try {
+      setUsernameError(null)
+      await enablePublicProfile({ variables: { input: { username: candidate } } })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not enable public profile'
+      setUsernameError(msg.replace('GraphQL error: ', ''))
+    }
+  }
+
+  function handleTogglePublicRepos(next: boolean) {
+    void updatePublicPrefs({ variables: { input: { showRepos: next } } })
+  }
+
+  function handleTogglePublicStreak(next: boolean) {
+    void updatePublicPrefs({ variables: { input: { showStreak: next } } })
+  }
+
+  function handleDisablePublic() {
+    void disablePublicProfile()
+  }
+
+  function handleCopyUrl() {
+    const url = publicUrl()
+    if (!url) return
+    void navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    })
+  }
+
+  function publicUrl(): string | null {
+    if (!user?.username) return null
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${origin}/u/${user.username}`
   }
 
   const initials = user?.name
@@ -135,6 +229,116 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Public profile */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Public profile</CardTitle>
+          {user?.publicProfile && <Badge variant="success">Live</Badge>}
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2">
+                <Globe className="h-5 w-5 text-slate-300" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-200">Make my profile public</p>
+                <p className="text-xs text-slate-600">
+                  Share a curated read-only page at <span className="font-mono">/u/{'{username}'}</span>.
+                  No email, no private repos.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={!!user?.publicProfile}
+              onCheckedChange={(next) => {
+                if (next && !user?.username) return // need username first
+                if (next) {
+                  // re-enable after disabling — server still has the username
+                  void enablePublicProfile({ variables: { input: { username: user!.username! } } })
+                } else {
+                  handleDisablePublic()
+                }
+              }}
+              disabled={loading || disablingPublic || enablingPublic || (!user?.publicProfile && !user?.username)}
+            />
+          </div>
+
+          {/* No username yet → show input */}
+          {!loading && !user?.username && (
+            <div className="space-y-2 rounded-lg border border-border-2 bg-surface-2 p-4">
+              <label className="block text-xs font-medium text-slate-400">Pick a public username</label>
+              <div className="flex gap-2">
+                <div className="flex flex-1 items-center rounded-md border border-border-2 bg-surface px-3">
+                  <span className="font-mono text-xs text-slate-600">devpulse.app/u/</span>
+                  <input
+                    value={usernameDraft}
+                    onChange={(e) => setUsernameDraft(e.target.value.toLowerCase())}
+                    placeholder="your-handle"
+                    className="ml-1 h-9 flex-1 bg-transparent font-mono text-xs text-slate-200 outline-none placeholder:text-slate-700"
+                  />
+                </div>
+                <Button onClick={() => void handleEnablePublic()} disabled={enablingPublic} size="default">
+                  {enablingPublic ? 'Reserving…' : 'Enable'}
+                </Button>
+              </div>
+              {usernameError && <p className="text-xs text-danger">{usernameError}</p>}
+              <p className="text-[11px] text-slate-600">
+                3-30 characters · letters, numbers, dashes · once taken it&apos;s yours
+              </p>
+            </div>
+          )}
+
+          {/* Username exists and profile is public → show URL + section toggles */}
+          {user?.publicProfile && user.username && (
+            <>
+              <div className="flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5">
+                <span className="flex-1 truncate font-mono text-xs text-accent">{publicUrl()}</span>
+                <Button variant="ghost" size="icon-sm" onClick={handleCopyUrl} title="Copy URL">
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+                <Button asChild variant="ghost" size="icon-sm" title="Open">
+                  <a href={`/u/${user.username}`} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-200">Show tracked repositories</p>
+                    <p className="text-xs text-slate-600">List of repos appears on your public page</p>
+                  </div>
+                  <Switch
+                    checked={user.publicShowRepos}
+                    onCheckedChange={handleTogglePublicRepos}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-200">Show streak</p>
+                    <p className="text-xs text-slate-600">Current and longest streak counters</p>
+                  </div>
+                  <Switch
+                    checked={user.publicShowStreak}
+                    onCheckedChange={handleTogglePublicStreak}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Username reserved but profile disabled */}
+          {!user?.publicProfile && user?.username && (
+            <p className="text-xs text-slate-500">
+              Username <span className="font-mono text-slate-300">@{user.username}</span> is reserved for you.
+              Toggle on to publish your profile.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Notifications */}
       <Card>
         <CardHeader>
@@ -145,22 +349,52 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3">
               <Mail className="h-4 w-4 text-slate-500" />
               <div>
-                <p className="text-sm font-medium text-slate-200">Weekly digest</p>
-                <p className="text-xs text-slate-600">Summary of your week sent every Monday</p>
+                <p className="text-sm font-medium text-slate-200">Weekly digest email</p>
+                <p className="text-xs text-slate-600">Sent every Monday at 9 AM</p>
               </div>
             </div>
-            <Switch checked={weeklyDigest} onCheckedChange={setWeeklyDigest} />
+            <Switch
+              checked={weeklyDigest}
+              onCheckedChange={handleToggleWeeklyDigest}
+              disabled={loading || savingPrefs}
+            />
           </div>
           <div className="h-px bg-border" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Bell className="h-4 w-4 text-slate-500" />
               <div>
-                <p className="text-sm font-medium text-slate-200">Streak alerts</p>
-                <p className="text-xs text-slate-600">Get reminded before your streak breaks</p>
+                <p className="text-sm font-medium text-slate-200">Streak at-risk alerts</p>
+                <p className="text-xs text-slate-600">When your streak is about to break</p>
               </div>
             </div>
-            <Switch checked={streakAlerts} onCheckedChange={setStreakAlerts} />
+            <Switch
+              checked={streakAlerts}
+              onCheckedChange={handleToggleStreakAlerts}
+              disabled={loading || savingPrefs}
+            />
+          </div>
+          <div className="h-px bg-border" />
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-slate-200">Send a test digest</p>
+              <p className="text-xs text-slate-600">Verify your email config without waiting until Monday</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSendTestDigest()}
+              disabled={sendingTest || !user?.email}
+            >
+              <Send className="h-3.5 w-3.5" />
+              {sendingTest
+                ? 'Sending…'
+                : testDigestState === 'sent'
+                  ? 'Sent!'
+                  : testDigestState === 'error'
+                    ? 'Failed — retry'
+                    : 'Send test'}
+            </Button>
           </div>
         </CardContent>
       </Card>

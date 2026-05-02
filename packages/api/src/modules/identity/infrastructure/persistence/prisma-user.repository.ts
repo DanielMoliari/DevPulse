@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import type { User } from '@prisma/client'
 import { PrismaService } from '../../../../infrastructure/database/prisma.service'
-import type { IUserRepository } from '../../ports/user.repository.port'
+import type { IUserRepository, UpdatePublicProfileData } from '../../ports/user.repository.port'
 
 @Injectable()
 export class PrismaUserRepository implements IUserRepository {
@@ -17,6 +17,10 @@ export class PrismaUserRepository implements IUserRepository {
 
   findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } })
+  }
+
+  findByUsername(username: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { username } })
   }
 
   upsertFromGitHub(data: {
@@ -46,6 +50,10 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   updateProfile(userId: string, data: { name?: string; email?: string }): Promise<User> {
+    return this.prisma.user.update({ where: { id: userId }, data })
+  }
+
+  updatePublicProfile(userId: string, data: UpdatePublicProfileData): Promise<User> {
     return this.prisma.user.update({ where: { id: userId }, data })
   }
 }

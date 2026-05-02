@@ -7,9 +7,11 @@ import { PrismaMetricsRepository } from './infrastructure/persistence/prisma-met
 import { GITHUB_PORT } from './ports/github.port'
 import { METRICS_REPOSITORY } from './ports/metrics.repository.port'
 import { AnalyticsService } from './application/services/analytics.service'
+import { PublicProfileService } from './application/services/public-profile.service'
 import { StreakService } from './application/services/streak.service'
 import { SyncRepositoryProcessor } from './application/jobs/sync-repository.processor'
 import { AnalyticsResolver } from './graphql/resolvers/analytics.resolver'
+import { PublicProfileResolver } from './graphql/resolvers/public-profile.resolver'
 
 @Module({
   imports: [
@@ -19,11 +21,13 @@ import { AnalyticsResolver } from './graphql/resolvers/analytics.resolver'
   providers: [
     AnalyticsService,
     StreakService,
+    PublicProfileService,
     SyncRepositoryProcessor,
     AnalyticsResolver,
+    PublicProfileResolver,
     { provide: GITHUB_PORT, useClass: GitHubApiAdapter },
     { provide: METRICS_REPOSITORY, useClass: PrismaMetricsRepository },
   ],
-  exports: [AnalyticsService, StreakService],
+  exports: [AnalyticsService, StreakService, PublicProfileService],
 })
 export class AnalyticsModule {}

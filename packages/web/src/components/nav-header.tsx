@@ -50,7 +50,7 @@ export function NavHeader() {
                 <Skeleton className="h-7 w-7 rounded-full" />
               ) : (
                 <Avatar className="h-7 w-7">
-                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.username} />
+                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.username ?? undefined} />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
               )}

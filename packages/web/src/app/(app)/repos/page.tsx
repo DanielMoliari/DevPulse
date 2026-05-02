@@ -1,17 +1,20 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { useQuery, useMutation } from '@apollo/client/react'
-import { Search } from 'lucide-react'
+import { Search, Sparkles } from 'lucide-react'
 import { RepoCard, RepoCardSkeleton } from '@/components/repo-card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { REPOSITORIES_QUERY } from '@/graphql/queries'
+import { ME_QUERY, REPOSITORIES_QUERY } from '@/graphql/queries'
 import { TRACK_REPOSITORY, UNTRACK_REPOSITORY, SYNC_REPOSITORY } from '@/graphql/mutations'
-import type { Repository } from '@/graphql/types'
+import type { Repository, User } from '@/graphql/types'
+import { PLAN_LIMITS } from '@/lib/plan-limits'
 
 export default function ReposPage() {
+  const { data: meData } = useQuery<{ me: User }>(ME_QUERY)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'tracked' | 'untracked'>('all')
 
@@ -41,6 +44,9 @@ export default function ReposPage() {
   const repos = data?.repositories ?? []
   const tracked = repos.filter((r) => r.isTracked).length
 
+  const planLimit = meData?.me ? PLAN_LIMITS[meData.me.plan].maxTrackedRepos : null
+  const overLimit = planLimit !== null && tracked >= planLimit
+
   const filtered = repos.filter((r) => {
     const matchSearch = r.fullName.toLowerCase().includes(search.toLowerCase())
     const matchFilter =
@@ -54,9 +60,43 @@ export default function ReposPage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <h2 className="text-base font-semibold text-slate-100">Repositories</h2>
-          <Badge variant="default">{tracked} tracked</Badge>
+          {planLimit !== null ? (
+            <Badge variant={overLimit ? 'warning' : 'default'}>
+              {tracked} / {planLimit} tracked
+            </Badge>
+          ) : (
+            <Badge variant="default">{tracked} tracked</Badge>
+          )}
         </div>
+        {meData?.me?.plan === 'FREE' && (
+          <Button asChild variant="outline" size="sm">
+            <Link href="/settings#billing">
+              <Sparkles className="h-3.5 w-3.5" />
+              Upgrade to Pro
+            </Link>
+          </Button>
+        )}
       </div>
+
+      {/* Plan-limit nudge — only shown when at or over the cap */}
+      {overLimit && meData?.me?.plan === 'FREE' && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-accent/20 bg-accent/5 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-dim">
+              <Sparkles className="h-4 w-4 text-accent" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-100">You&apos;ve hit the FREE plan cap</p>
+              <p className="text-xs text-slate-500">
+                Pro tracks up to {PLAN_LIMITS.PRO.maxTrackedRepos} repos with full history and real-time sync.
+              </p>
+            </div>
+          </div>
+          <Button asChild size="sm">
+            <Link href="/settings#billing">Upgrade →</Link>
+          </Button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
