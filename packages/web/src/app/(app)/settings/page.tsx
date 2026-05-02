@@ -97,15 +97,20 @@ export default function SettingsPage() {
   async function handleEnablePublic() {
     const candidate = usernameDraft.trim().toLowerCase()
     if (candidate.length < 3 || candidate.length > 30 || !USERNAME_RE.test(candidate)) {
-      setUsernameError('3-30 chars, alphanumeric or dash, no leading/trailing dash.')
+      setUsernameError('3-30 chars, letters/digits/dashes, no leading or trailing dash.')
       return
     }
     try {
       setUsernameError(null)
       await enablePublicProfile({ variables: { input: { username: candidate } } })
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not enable public profile'
-      setUsernameError(msg.replace('GraphQL error: ', ''))
+      // NestJS BadRequestException puts the real message under extensions.originalError.message.
+      // Apollo Client v4 surfaces it as a CombinedGraphQLErrors with .errors[0].extensions.originalError
+      const err = e as { graphQLErrors?: { extensions?: { originalError?: { message?: string | string[] } }; message?: string }[]; message?: string }
+      const gqlErr = err.graphQLErrors?.[0]
+      const orig = gqlErr?.extensions?.originalError?.message
+      const msg = Array.isArray(orig) ? orig.join(' · ') : orig ?? gqlErr?.message ?? err.message ?? 'Could not enable public profile'
+      setUsernameError(msg)
     }
   }
 
@@ -273,19 +278,35 @@ export default function SettingsPage() {
                   <span className="font-mono text-xs text-slate-600">devpulse.app/u/</span>
                   <input
                     value={usernameDraft}
-                    onChange={(e) => setUsernameDraft(e.target.value.toLowerCase())}
+                    onChange={(e) => {
+                      // Strip invalid chars on the way in so the user never sees a confusing rejection later
+                      const cleaned = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30)
+                      setUsernameDraft(cleaned)
+                      if (usernameError) setUsernameError(null)
+                    }}
                     placeholder="your-handle"
                     className="ml-1 h-9 flex-1 bg-transparent font-mono text-xs text-slate-200 outline-none placeholder:text-slate-700"
                   />
                 </div>
-                <Button onClick={() => void handleEnablePublic()} disabled={enablingPublic} size="default">
+                <Button
+                  onClick={() => void handleEnablePublic()}
+                  disabled={enablingPublic || !USERNAME_RE.test(usernameDraft) || usernameDraft.length < 3}
+                  size="default"
+                >
                   {enablingPublic ? 'Reserving…' : 'Enable'}
                 </Button>
               </div>
-              {usernameError && <p className="text-xs text-danger">{usernameError}</p>}
-              <p className="text-[11px] text-slate-600">
-                3-30 characters · letters, numbers, dashes · once taken it&apos;s yours
-              </p>
+              {usernameError ? (
+                <p className="text-xs text-danger">{usernameError}</p>
+              ) : usernameDraft.length === 0 ? (
+                <p className="text-[11px] text-slate-600">3-30 characters · letters, numbers, dashes · once taken it&apos;s yours</p>
+              ) : usernameDraft.length < 3 ? (
+                <p className="text-[11px] text-amber-400">{3 - usernameDraft.length} more character{3 - usernameDraft.length !== 1 ? 's' : ''} needed</p>
+              ) : !USERNAME_RE.test(usernameDraft) ? (
+                <p className="text-[11px] text-amber-400">Cannot start or end with a dash</p>
+              ) : (
+                <p className="text-[11px] text-success">✓ <span className="font-mono">{usernameDraft}</span> looks good</p>
+              )}
             </div>
           )}
 
