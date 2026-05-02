@@ -8,17 +8,9 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter'
 const logger = new Logger('Bootstrap')
 
 async function bootstrap() {
-  const adapter = new FastifyAdapter({ logger: process.env['NODE_ENV'] === 'development' })
-
-  // Register @fastify/express BEFORE Nest auto-registers middie (which also adds the `use` decorator)
-  // Required for passport-github2 which calls Express-style res.setHeader/res.redirect on OAuth callback
-  const fastifyExpress = await import('@fastify/express')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adapter.getInstance() as any).register(fastifyExpress.default)
-
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    adapter,
+    new FastifyAdapter({ logger: process.env['NODE_ENV'] === 'development' }),
     { rawBody: true },
   )
 

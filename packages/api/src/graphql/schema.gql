@@ -1,0 +1,112 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type DailyMetricsType {
+  additions: Int!
+  churnRatio: Float
+  commits: Int!
+  date: DateTime!
+  deletions: Int!
+  id: ID!
+  netLines: Int!
+  prsMerged: Int!
+  prsOpened: Int!
+  reviewsDone: Int!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type HeatmapDayType {
+  count: Int!
+  date: DateTime!
+  level: Int!
+}
+
+input MetricsRangeInput {
+  from: DateTime!
+  repositoryId: String
+  to: DateTime!
+}
+
+type Mutation {
+  """Trigger an on-demand repository sync"""
+  syncRepository(id: ID!): SyncResultType!
+
+  """Start tracking a GitHub repository"""
+  trackRepository(githubRepoId: String!): RepositoryType!
+
+  """Stop tracking a repository"""
+  untrackRepository(id: ID!): Boolean!
+
+  """Update the authenticated user profile"""
+  updateProfile(input: UpdateProfileInput!): UserType!
+}
+
+"""User subscription plan"""
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+type Query {
+  """Get contribution heatmap data"""
+  heatmap(year: Float): [HeatmapDayType!]!
+
+  """Get the authenticated user profile"""
+  me: UserType
+
+  """Get daily metrics for a date range"""
+  metrics(input: MetricsRangeInput!): [DailyMetricsType!]!
+
+  """List all tracked repositories"""
+  repositories: [RepositoryType!]!
+
+  """Get current streak stats"""
+  streak: StreakType
+}
+
+type RepositoryType {
+  fullName: String!
+  id: ID!
+  isTracked: Boolean!
+  language: String
+  lastSyncedAt: DateTime
+  syncState: SyncState!
+}
+
+type StreakType {
+  currentStreak: Int!
+  lastActiveDate: DateTime
+  longestStreak: Int!
+}
+
+type SyncResultType {
+  queued: Boolean!
+  repositoryId: ID!
+}
+
+enum SyncState {
+  ERROR
+  IDLE
+  SYNCING
+}
+
+input UpdateProfileInput {
+  email: String
+  name: String
+}
+
+type UserType {
+  avatarUrl: String
+  createdAt: DateTime!
+  email: String
+  githubId: String!
+  id: ID!
+  name: String
+  plan: Plan!
+}

@@ -3,7 +3,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { EncryptionService } from '../../infrastructure/crypto/encryption.service'
-import { GitHubStrategy } from './application/strategies/github.strategy'
 import { JwtStrategy } from './application/strategies/jwt.strategy'
 import { IdentityService } from './application/services/identity.service'
 import { AuthController } from './infrastructure/http/auth.controller'
@@ -27,7 +26,6 @@ import { UserResolver } from './graphql/resolvers/user.resolver'
   providers: [
     IdentityService,
     EncryptionService,
-    GitHubStrategy,
     JwtStrategy,
     UserResolver,
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },
