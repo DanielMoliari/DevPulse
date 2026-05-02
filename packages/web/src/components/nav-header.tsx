@@ -45,7 +45,7 @@ export function NavHeader() {
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button className="flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-surface-2 focus-visible:outline-none">
+            <button className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-surface-2 focus-visible:outline-none">
               {loading ? (
                 <Skeleton className="h-7 w-7 rounded-full" />
               ) : (

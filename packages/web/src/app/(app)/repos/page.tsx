@@ -74,7 +74,7 @@ export default function ReposPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors capitalize ${
+              className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors capitalize ${
                 filter === f ? 'bg-surface-2 text-slate-100' : 'text-slate-500 hover:text-slate-300'
               }`}
             >

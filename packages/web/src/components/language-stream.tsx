@@ -151,7 +151,7 @@ export function LanguageStream({ years, series, height = 320 }: LanguageStreamPr
               stroke={languageColor(l.language)}
               strokeWidth={0.6}
               opacity={activeLang && activeLang !== l.language ? 0.15 : 1}
-              style={{ transition: 'opacity 200ms' }}
+              style={{ transition: 'opacity 200ms', cursor: 'pointer' }}
               onMouseEnter={() => setActiveLang(l.language)}
               onMouseLeave={() => setActiveLang(null)}
             />
@@ -205,7 +205,7 @@ export function LanguageStream({ years, series, height = 320 }: LanguageStreamPr
             key={s.language}
             onMouseEnter={() => setActiveLang(s.language)}
             onMouseLeave={() => setActiveLang(null)}
-            className={`flex items-center gap-1.5 transition-opacity ${
+            className={`flex cursor-pointer items-center gap-1.5 transition-opacity ${
               activeLang && activeLang !== s.language ? 'opacity-40' : 'opacity-100'
             }`}
           >
