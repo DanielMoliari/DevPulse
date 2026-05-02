@@ -285,25 +285,33 @@ export class AnalyticsService {
     return this.computeHourlyActivity(userId)
   }
 
-  // Sums commit-hour buckets across every tracked repo.
+  // Sums commit-hour buckets across the user's most active repos.
   // Cached for 1h — cold path is O(repos) GitHub calls and shifts slowly.
-  // Capped at the 20 most-recently-pushed repos so the cold call doesn't time out
-  // for users with hundreds of repos. Returns null if too expensive on first try.
+  // Picks repos by actual commit activity (from daily_metrics, not sync recency)
+  // so users with hundreds of inactive repos still get meaningful hourly data.
   private async computeHourlyActivity(userId: string): Promise<{ hours: number[]; peakHour: number; peakRatio: number } | null> {
     const cacheKey = `analytics:hourly:${userId}`
     return this.redis.getOrSet(cacheKey, async () => {
       const allRepos = await this.metricsRepo.findRepositoriesByUser(userId, true)
       if (allRepos.length === 0) return null
-      // Most recently synced first → captures what the user is actually working on
-      const repos = allRepos
-        .slice()
-        .sort((a, b) => (b.lastSyncedAt?.getTime() ?? 0) - (a.lastSyncedAt?.getTime() ?? 0))
-        .slice(0, 20)
-      const accessToken = await this.identityService.getDecryptedToken(userId)
 
-      // 1-year window keeps the cold call under ~3s for typical accounts
-      const since = new Date()
-      since.setUTCFullYear(since.getUTCFullYear() - 1)
+      // Rank repos by their actual commit count over all time (from our DB, free)
+      const sinceAllTime = new Date('2008-01-01T00:00:00Z')
+      const allMetrics = await this.metricsRepo.getDailyMetrics(userId, sinceAllTime, new Date())
+      const commitCountByRepo = new Map<string, number>()
+      for (const m of allMetrics) {
+        if (m.repoId) commitCountByRepo.set(m.repoId, (commitCountByRepo.get(m.repoId) ?? 0) + m.commits)
+      }
+      const repos = allRepos
+        .filter((r) => (commitCountByRepo.get(r.id) ?? 0) > 0)
+        .sort((a, b) => (commitCountByRepo.get(b.id) ?? 0) - (commitCountByRepo.get(a.id) ?? 0))
+        .slice(0, 20)
+
+      if (repos.length === 0) return null
+
+      const accessToken = await this.identityService.getDecryptedToken(userId)
+      // All-time window — only 20 repos matters more than time bound, since GitHub paginates anyway
+      const since = sinceAllTime
       const totals = new Array(24).fill(0) as number[]
 
       const CHUNK = 8
