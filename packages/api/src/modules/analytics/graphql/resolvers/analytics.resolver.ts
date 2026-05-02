@@ -73,6 +73,12 @@ export class AnalyticsResolver {
     return repo as unknown as RepositoryType
   }
 
+  @Mutation(() => Boolean, { description: 'Re-import all GitHub repositories for the current user' })
+  async importGitHubRepositories(@CurrentUser() user: JwtPayload): Promise<boolean> {
+    await this.analyticsService.importFromGitHub(user.sub)
+    return true
+  }
+
   @Mutation(() => Boolean, { description: 'Stop tracking a repository' })
   async untrackRepository(
     @CurrentUser() user: JwtPayload,

@@ -27,10 +27,12 @@ export class PrismaMetricsRepository implements IMetricsRepository {
     githubRepoId: string
     fullName: string
     language: string | null
+    isTracked?: boolean
   }): Promise<Repository> {
+    const { isTracked = true, ...rest } = data
     return this.prisma.repository.upsert({
       where: { userId_githubRepoId: { userId: data.userId, githubRepoId: data.githubRepoId } },
-      create: { ...data, isTracked: true },
+      create: { ...rest, isTracked },
       update: { fullName: data.fullName, language: data.language },
     })
   }

@@ -21,6 +21,7 @@ export interface IMetricsRepository {
     githubRepoId: string
     fullName: string
     language: string | null
+    isTracked?: boolean
   }): Promise<Repository>
   updateRepositorySyncState(
     id: string,

@@ -33,6 +33,9 @@ input MetricsRangeInput {
 }
 
 type Mutation {
+  """Re-import all GitHub repositories for the current user"""
+  importGitHubRepositories: Boolean!
+
   """Trigger an on-demand repository sync"""
   syncRepository(id: ID!): SyncResultType!
 

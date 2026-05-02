@@ -29,7 +29,41 @@ export class AnalyticsService {
   ) {}
 
   async getRepositories(userId: string): Promise<Repository[]> {
+    const existing = await this.metricsRepo.findRepositoriesByUser(userId)
+    if (existing.length > 0) return existing
+    // First call after OAuth — populate from GitHub so the user sees their data
+    await this.importFromGitHub(userId)
     return this.metricsRepo.findRepositoriesByUser(userId)
+  }
+
+  // Pull every repo the user owns, track the 10 most recently pushed, and kick off sync jobs
+  // so the dashboard fills with data without a manual "track" step.
+  async importFromGitHub(userId: string): Promise<{ imported: number; tracked: number }> {
+    const accessToken = await this.identityService.getDecryptedToken(userId)
+    const ghRepos = await this.github.getUserRepositories(accessToken)
+    const trackedTop = new Set(ghRepos.slice(0, 10).map((r) => String(r.id)))
+
+    let imported = 0
+    let tracked = 0
+    for (const ghRepo of ghRepos) {
+      const id = String(ghRepo.id)
+      const isTracked = trackedTop.has(id)
+      const repo = await this.metricsRepo.upsertRepository({
+        userId,
+        githubRepoId: id,
+        fullName: ghRepo.fullName,
+        language: ghRepo.language,
+        isTracked,
+      })
+      imported++
+      if (isTracked) {
+        await this.enqueueSyncJob(userId, repo.id, repo.fullName)
+        tracked++
+      }
+    }
+
+    this.logger.log(`Initial import for ${userId}: ${imported} repos, ${tracked} sync jobs queued`)
+    return { imported, tracked }
   }
 
   async trackRepository(userId: string, githubRepoId: string): Promise<Repository> {
@@ -85,7 +119,7 @@ export class AnalyticsService {
   private async enqueueSyncJob(userId: string, repositoryId: string, fullName: string): Promise<void> {
     const jobData: SyncJobData = { userId, repositoryId, fullName }
     await this.syncQueue.add('sync', jobData, {
-      jobId: `sync:${repositoryId}`,
+      jobId: `sync-${repositoryId}`,
       removeOnComplete: true,
     })
     this.logger.log(`Sync job queued for ${fullName}`)
