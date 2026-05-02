@@ -1,5 +1,5 @@
 import { UseGuards } from '@nestjs/common'
-import { Args, ID, Mutation, Query, ResolveField, Resolver, Root } from '@nestjs/graphql'
+import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql'
 import { GqlAuthGuard } from '../../../../common/guards/gql-auth.guard'
 import { CurrentUser, type JwtPayload } from '../../../../common/decorators/current-user.decorator'
 import { AnalyticsService } from '../../application/services/analytics.service'
@@ -50,7 +50,7 @@ export class AnalyticsResolver {
   @Query(() => [HeatmapDayType], { description: 'Get contribution heatmap data' })
   async heatmap(
     @CurrentUser() user: JwtPayload,
-    @Args('year', { nullable: true }) year?: number,
+    @Args('year', { type: () => Int, nullable: true }) year?: number,
   ): Promise<HeatmapDayType[]> {
     const targetYear = year ?? new Date().getFullYear()
     const from = new Date(`${targetYear}-01-01`)

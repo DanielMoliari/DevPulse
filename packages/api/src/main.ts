@@ -23,8 +23,8 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
+      // GraphQL has its own type system — `whitelist`+`forbidNonWhitelisted` would reject
+      // valid inputs that don't have class-validator decorators (which is most GraphQL @InputType classes)
       transform: true,
     }),
   )

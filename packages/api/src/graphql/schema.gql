@@ -55,7 +55,7 @@ enum Plan {
 
 type Query {
   """Get contribution heatmap data"""
-  heatmap(year: Float): [HeatmapDayType!]!
+  heatmap(year: Int): [HeatmapDayType!]!
 
   """Get the authenticated user profile"""
   me: UserType
@@ -109,4 +109,7 @@ type UserType {
   id: ID!
   name: String
   plan: Plan!
+
+  """GitHub-style display handle — falls back to name or githubId"""
+  username: String
 }

@@ -66,7 +66,7 @@ export class AuthController {
 
     const { accessToken: jwt } = await this.identityService.loginWithGitHub(vo)
     const frontendUrl = this.frontendBaseUrl()
-    await reply.redirect(`${frontendUrl}/auth/callback?token=${jwt}`)
+    await reply.status(302).redirect(`${frontendUrl}/auth/callback?token=${jwt}`)
   }
 
   @Get('logout')

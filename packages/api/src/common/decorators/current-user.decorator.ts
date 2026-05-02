@@ -12,7 +12,10 @@ export interface JwtPayload {
 export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext): JwtPayload => {
   if (ctx.getType<string>() === 'graphql') {
     const gqlCtx = GqlExecutionContext.create(ctx)
-    return gqlCtx.getContext<{ request: { user: JwtPayload } }>().request.user
+    const c = gqlCtx.getContext<{ request?: { user: JwtPayload }; req?: { user: JwtPayload } }>()
+    const req = c.request ?? c.req
+    if (!req) throw new Error('No request found in GraphQL context')
+    return req.user
   }
   return ctx.switchToHttp().getRequest<{ user: JwtPayload }>().user
 })

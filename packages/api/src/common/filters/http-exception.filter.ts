@@ -13,6 +13,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name)
 
   catch(exception: unknown, host: ArgumentsHost) {
+    // GraphQL handles its own errors — let Apollo format them via `errors[]` in the response
+    if (host.getType<string>() === 'graphql') {
+      throw exception
+    }
+
     const ctx = host.switchToHttp()
     const reply = ctx.getResponse<FastifyReply>()
     const request = ctx.getRequest<FastifyRequest>()

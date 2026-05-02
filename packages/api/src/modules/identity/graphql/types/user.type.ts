@@ -11,6 +11,9 @@ export class UserType {
   @Field({ nullable: true })
   name?: string
 
+  @Field({ nullable: true, description: 'GitHub-style display handle — falls back to name or githubId' })
+  username?: string
+
   @Field({ nullable: true })
   email?: string
 

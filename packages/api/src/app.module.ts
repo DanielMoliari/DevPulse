@@ -26,14 +26,17 @@ import { AppService } from './app.service'
     ]),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
+      path: '/api/graphql',
       autoSchemaFile: join(process.cwd(), 'src/graphql/schema.gql'),
       sortSchema: true,
       playground: process.env['NODE_ENV'] !== 'production',
       introspection: true,
-      context: ({ request, reply }: { request: unknown; reply: unknown }) => ({
-        request,
-        reply,
-      }),
+      // @as-integrations/fastify passes { request, reply } — passport-jwt only needs the request
+      // expose as both `request` and `req` so guards/decorators can use either naming
+      context: (ctx: { request?: unknown; req?: unknown }) => {
+        const request = ctx.request ?? ctx.req
+        return { request, req: request }
+      },
     }),
     PrismaModule,
     RedisModule,
