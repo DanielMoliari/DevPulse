@@ -266,25 +266,37 @@ export class AnalyticsService {
     burnout: { atRisk: boolean; consecutiveDays: number; netLinesTrend: number; message: string } | null
     techGraduations: { from: string; to: string; year: number; confidence: number; message: string }[]
   }> {
+    // Each subcomputation must fail in isolation — the dashboard query waits on this,
+    // so one slow GitHub call shouldn't block burnout (pure compute) or graduations.
+    const settle = <T>(p: Promise<T>, fallback: T): Promise<T> =>
+      p.catch((err) => { this.logger.warn(`insight subcomputation failed: ${String(err)}`); return fallback })
     const [hourlyActivity, burnout, techGraduations] = await Promise.all([
-      this.computeHourlyActivity(userId),
-      this.computeBurnoutSignal(userId),
-      this.computeTechGraduations(userId),
+      settle(this.computeHourlyActivity(userId), null),
+      settle(this.computeBurnoutSignal(userId), null),
+      settle(this.computeTechGraduations(userId), [] as { from: string; to: string; year: number; confidence: number; message: string }[]),
     ])
     return { hourlyActivity, burnout, techGraduations }
   }
 
   // Sums commit-hour buckets across every tracked repo.
-  // Cached for 1h — the cold path is O(repos) GitHub calls and the data only shifts slowly.
+  // Cached for 1h — cold path is O(repos) GitHub calls and shifts slowly.
+  // Capped at the 20 most-recently-pushed repos so the cold call doesn't time out
+  // for users with hundreds of repos. Returns null if too expensive on first try.
   private async computeHourlyActivity(userId: string): Promise<{ hours: number[]; peakHour: number; peakRatio: number } | null> {
     const cacheKey = `analytics:hourly:${userId}`
     return this.redis.getOrSet(cacheKey, async () => {
-      const repos = await this.metricsRepo.findRepositoriesByUser(userId, true)
-      if (repos.length === 0) return null
+      const allRepos = await this.metricsRepo.findRepositoriesByUser(userId, true)
+      if (allRepos.length === 0) return null
+      // Most recently synced first → captures what the user is actually working on
+      const repos = allRepos
+        .slice()
+        .sort((a, b) => (b.lastSyncedAt?.getTime() ?? 0) - (a.lastSyncedAt?.getTime() ?? 0))
+        .slice(0, 20)
       const accessToken = await this.identityService.getDecryptedToken(userId)
 
-      // All-time = since 2008 (GitHub's birth year); GraphQL caps at ~1k commits/repo via getCommitHours
-      const since = new Date('2008-01-01T00:00:00.000Z')
+      // 1-year window keeps the cold call under ~3s for typical accounts
+      const since = new Date()
+      since.setUTCFullYear(since.getUTCFullYear() - 1)
       const totals = new Array(24).fill(0) as number[]
 
       const CHUNK = 8

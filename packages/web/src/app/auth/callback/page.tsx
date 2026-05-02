@@ -10,12 +10,18 @@ function CallbackInner() {
   const params = useSearchParams()
 
   useEffect(() => {
-    const token = params.get('token')
-    const error = params.get('error')
+    // useSearchParams can be empty on the very first client render in Next 15 — fall back to window.location
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+    const token = params.get('token') ?? urlParams?.get('token') ?? null
+    const error = params.get('error') ?? urlParams?.get('error') ?? null
+    console.log('[auth/callback] token:', !!token, 'len:', token?.length, 'error:', error, 'href:', typeof window !== 'undefined' ? window.location.href : 'ssr')
     if (token) {
       setToken(token)
-      router.replace('/dashboard')
+      console.log('[auth/callback] saved token, navigating to /dashboard')
+      // Use a hard navigation to ensure Apollo Client picks up the new token in localStorage
+      window.location.replace('/dashboard')
     } else {
+      console.warn('[auth/callback] no token found, redirecting to landing')
       router.replace(`/?error=${error ?? 'auth_failed'}`)
     }
   }, [router, params])
