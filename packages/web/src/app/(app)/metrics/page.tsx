@@ -8,7 +8,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { METRICS_QUERY } from '@/graphql/queries'
+import { LanguageStream } from '@/components/language-stream'
+import { METRICS_QUERY, LANGUAGE_HISTORY_QUERY } from '@/graphql/queries'
 import type { DailyMetrics } from '@/graphql/types'
 import { getTrend } from '@/lib/utils'
 import {
@@ -239,6 +240,21 @@ export default function MetricsPage() {
         </TabsContent>
 
         <TabsContent value="breakdown">
+          <Card className="mb-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <span>Language history</span>
+                <Badge variant="outline" className="text-[10px]">cumulative bytes by year</Badge>
+              </CardTitle>
+              <p className="mt-1 text-xs text-slate-500">
+                Streamgraph of every language you've ever picked up across all repos
+              </p>
+            </CardHeader>
+            <CardContent>
+              <LanguageHistorySection />
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Language pie */}
             <Card>
@@ -305,4 +321,12 @@ export default function MetricsPage() {
       </Tabs>
     </div>
   )
+}
+
+function LanguageHistorySection() {
+  const { data, loading } = useQuery<{ languageHistory: { years: number[]; series: { language: string; values: number[] }[] } }>(
+    LANGUAGE_HISTORY_QUERY,
+  )
+  if (loading || !data) return <Skeleton className="h-[320px] w-full" />
+  return <LanguageStream years={data.languageHistory.years} series={data.languageHistory.series} height={320} />
 }

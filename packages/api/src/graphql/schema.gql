@@ -32,6 +32,16 @@ type LanguageBreakdownType {
   percent: Float!
 }
 
+type LanguageHistoryType {
+  series: [LanguageSeriesType!]!
+  years: [Int!]!
+}
+
+type LanguageSeriesType {
+  language: String!
+  values: [Float!]!
+}
+
 input MetricsRangeInput {
   from: DateTime!
   repositoryId: String
@@ -66,6 +76,9 @@ type Query {
   """Get contribution heatmap data"""
   heatmap(year: Int): [HeatmapDayType!]!
 
+  """Cumulative language adoption per year (for streamgraph)"""
+  languageHistory: LanguageHistoryType!
+
   """Get the authenticated user profile"""
   me: UserType
 
@@ -80,6 +93,9 @@ type Query {
 
   """Get current streak stats"""
   streak: StreakType
+
+  """User-wide tech graph: every tracked repo × every language it uses"""
+  techGraph: TechGraphType!
 }
 
 type RepoCuriosityType {
@@ -131,6 +147,24 @@ enum SyncState {
   ERROR
   IDLE
   SYNCING
+}
+
+type TechGraphLinkType {
+  source: String!
+  target: String!
+  value: Float!
+}
+
+type TechGraphNodeType {
+  id: String!
+  name: String!
+  type: String!
+  value: Float!
+}
+
+type TechGraphType {
+  links: [TechGraphLinkType!]!
+  nodes: [TechGraphNodeType!]!
 }
 
 input UpdateProfileInput {

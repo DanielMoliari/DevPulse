@@ -7,6 +7,7 @@ import {
   GitBranch,
   BarChart3,
   Flame,
+  Network,
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
@@ -19,6 +20,7 @@ import { Button } from '@/components/ui/button'
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/repos', label: 'Repositories', icon: GitBranch },
+  { href: '/tech', label: 'Tech graph', icon: Network },
   { href: '/metrics', label: 'Metrics', icon: BarChart3 },
   { href: '/streaks', label: 'Streaks', icon: Flame },
   { href: '/settings', label: 'Settings', icon: Settings },

@@ -64,6 +64,24 @@ export const HEATMAP_QUERY = gql`
   }
 `
 
+export const TECH_GRAPH_QUERY = gql`
+  query TechGraph {
+    techGraph {
+      nodes { id type name value }
+      links { source target value }
+    }
+  }
+`
+
+export const LANGUAGE_HISTORY_QUERY = gql`
+  query LanguageHistory {
+    languageHistory {
+      years
+      series { language values }
+    }
+  }
+`
+
 export const REPOSITORY_DETAIL_QUERY = gql`
   query RepositoryDetail($id: ID!) {
     repositoryDetail(id: $id) {

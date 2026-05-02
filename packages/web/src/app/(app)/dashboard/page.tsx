@@ -5,6 +5,7 @@ import { useQuery } from '@apollo/client/react'
 import { MetricCard } from '@/components/metric-card'
 import { Heatmap } from '@/components/heatmap'
 import { ActivityChart } from '@/components/activity-chart'
+import { ActivityRadial } from '@/components/activity-radial'
 import { StreakBadge } from '@/components/streak-badge'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -134,15 +135,30 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Heatmap */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Contribution Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Heatmap data={heatmapData?.heatmap ?? []} loading={heatmapLoading} />
-        </CardContent>
-      </Card>
+      {/* Heatmap + Radial day-of-week */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Contribution Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Heatmap data={heatmapData?.heatmap ?? []} loading={heatmapLoading} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Day-of-week rhythm</CardTitle>
+            <p className="mt-1 text-xs text-slate-500">When the work actually happens</p>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {metricsLoading ? (
+              <Skeleton className="h-[320px] w-[320px] rounded-full" />
+            ) : (
+              <ActivityRadial data={metrics.map((m) => ({ date: m.date, commits: m.commits }))} size={320} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Recent activity chart */}
       <Card>

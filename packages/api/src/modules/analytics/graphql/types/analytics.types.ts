@@ -116,6 +116,39 @@ export class RepoCuriosityType {
 }
 
 @ObjectType()
+export class TechGraphNodeType {
+  @Field() id: string
+  @Field() type: string  // 'repo' | 'language'
+  @Field() name: string
+  @Field(() => Float) value: number
+}
+
+@ObjectType()
+export class TechGraphLinkType {
+  @Field() source: string
+  @Field() target: string
+  @Field(() => Float) value: number
+}
+
+@ObjectType()
+export class TechGraphType {
+  @Field(() => [TechGraphNodeType]) nodes: TechGraphNodeType[]
+  @Field(() => [TechGraphLinkType]) links: TechGraphLinkType[]
+}
+
+@ObjectType()
+export class LanguageSeriesType {
+  @Field() language: string
+  @Field(() => [Float]) values: number[]
+}
+
+@ObjectType()
+export class LanguageHistoryType {
+  @Field(() => [Int]) years: number[]
+  @Field(() => [LanguageSeriesType]) series: LanguageSeriesType[]
+}
+
+@ObjectType()
 export class RepoDetailType {
   @Field(() => RepositoryType) repository: RepositoryType
 

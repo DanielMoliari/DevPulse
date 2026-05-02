@@ -7,12 +7,14 @@ import { StreakService } from '../../application/services/streak.service'
 import {
   DailyMetricsType,
   HeatmapDayType,
+  LanguageHistoryType,
   MetricsRangeInput,
   RepoCuriosityType,
   RepoDetailType,
   RepositoryType,
   StreakType,
   SyncResultType,
+  TechGraphType,
 } from '../types/analytics.types'
 import type { DailyMetrics } from '@prisma/client'
 
@@ -68,6 +70,16 @@ export class AnalyticsResolver {
       longestStreak: s.longestStreak,
       ...(lastActive ? { lastActiveDate: lastActive } : {}),
     }
+  }
+
+  @Query(() => TechGraphType, { description: 'User-wide tech graph: every tracked repo × every language it uses' })
+  async techGraph(@CurrentUser() user: JwtPayload): Promise<TechGraphType> {
+    return this.analyticsService.getTechGraph(user.sub)
+  }
+
+  @Query(() => LanguageHistoryType, { description: 'Cumulative language adoption per year (for streamgraph)' })
+  async languageHistory(@CurrentUser() user: JwtPayload): Promise<LanguageHistoryType> {
+    return this.analyticsService.getLanguageHistory(user.sub)
   }
 
   @Query(() => RepoDetailType, { description: 'Detailed insights for a single repository' })
