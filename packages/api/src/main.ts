@@ -14,6 +14,10 @@ async function bootstrap() {
     { rawBody: true },
   )
 
+  // Passport-github2 uses Express-style res.setHeader/redirect — Fastify needs the express compat layer
+  const fastifyExpress = await import('@fastify/express')
+  await app.register(fastifyExpress.default)
+
   app.enableCors({
     origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:38929'],
     credentials: true,
