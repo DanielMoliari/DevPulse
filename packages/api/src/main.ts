@@ -16,7 +16,8 @@ async function bootstrap() {
 
   // Passport-github2 uses Express-style res.setHeader/redirect — Fastify needs the express compat layer
   const fastifyExpress = await import('@fastify/express')
-  await app.register(fastifyExpress.default)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await app.register(fastifyExpress.default as any)
 
   app.enableCors({
     origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:38929'],
