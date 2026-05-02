@@ -1,4 +1,4 @@
-export type Plan = 'FREE' | 'PRO'
+export type Plan = 'FREE' | 'PRO' | 'TEAM'
 export type SyncState = 'IDLE' | 'SYNCING' | 'ERROR'
 
 export interface User {

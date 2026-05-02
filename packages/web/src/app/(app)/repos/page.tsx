@@ -44,7 +44,9 @@ export default function ReposPage() {
   const repos = data?.repositories ?? []
   const tracked = repos.filter((r) => r.isTracked).length
 
-  const planLimit = meData?.me ? PLAN_LIMITS[meData.me.plan].maxTrackedRepos : null
+  // Defensive: PLAN_LIMITS only has FREE/PRO/TEAM keys — fall back to null if the
+  // server ever returns an unrecognized plan or while me{} is still loading
+  const planLimit = meData?.me?.plan ? PLAN_LIMITS[meData.me.plan]?.maxTrackedRepos ?? null : null
   const overLimit = planLimit !== null && tracked >= planLimit
 
   const filtered = repos.filter((r) => {

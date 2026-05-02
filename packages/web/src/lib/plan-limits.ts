@@ -6,5 +6,5 @@ import type { Plan } from '@/graphql/types'
 export const PLAN_LIMITS: Record<Plan, { maxTrackedRepos: number }> = {
   FREE: { maxTrackedRepos: 5 },
   PRO: { maxTrackedRepos: 100 },
-  // TEAM is supported on the backend but not yet exposed on the frontend Plan type
+  TEAM: { maxTrackedRepos: 500 },
 }
