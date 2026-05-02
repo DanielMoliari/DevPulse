@@ -12,7 +12,7 @@ import { TechGraduationCard } from '@/components/tech-graduation-card'
 import { ShareProfileButton } from '@/components/share-profile-button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY } from '@/graphql/queries'
+import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY, HOURLY_ACTIVITY_QUERY } from '@/graphql/queries'
 import type { DailyMetrics, StreakData, HeatmapDay, Insights } from '@/graphql/types'
 import { getTrend } from '@/lib/utils'
 import { Coffee, Sparkles, Clock } from 'lucide-react'
@@ -236,6 +236,12 @@ export default function DashboardPage() {
 //   2. Burnout warning (only shown when atRisk = true; supportive tone, never alarmist)
 //   3. Tech graduation moments (auto-detected language transitions over the years)
 function PersonalInsights({ insights, loading }: { insights: Insights | undefined; loading: boolean }) {
+  // Hourly activity is its own slow query (1-3 min cold) — fetched separately so it
+  // doesn't block burnout/graduations which are instant
+  const { data: hourlyData, loading: hourlyLoading } = useQuery<{ hourlyActivity: { hours: number[]; peakHour: number; peakRatio: number } | null }>(
+    HOURLY_ACTIVITY_QUERY,
+  )
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -249,7 +255,8 @@ function PersonalInsights({ insights, loading }: { insights: Insights | undefine
   }
   if (!insights) return null
 
-  const { hourlyActivity, burnout, techGraduations } = insights
+  const { burnout, techGraduations } = insights
+  const hourlyActivity = hourlyData?.hourlyActivity ?? null
   const hasHourly = !!hourlyActivity && hourlyActivity.hours.some((n) => n > 0)
   const hasBurnout = !!burnout && burnout.atRisk
   const hasGraduations = techGraduations.length > 0
@@ -265,32 +272,40 @@ function PersonalInsights({ insights, loading }: { insights: Insights | undefine
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
-        {/* Productive hours */}
-        {hasHourly ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5 text-accent" /> Productive hours
-              </CardTitle>
-              <p className="mt-1 text-xs text-slate-500">
-                When you actually commit · all-time, UTC
-              </p>
-            </CardHeader>
-            <CardContent>
-              <HourlyActivity hours={hourlyActivity.hours} peakHour={hourlyActivity.peakHour} />
-              <div className="mt-3 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500">
-                  Peak at <span className="tabular font-semibold text-accent">{formatHour(hourlyActivity.peakHour)}</span>
-                </span>
-                <span className="tabular text-slate-600">
-                  {hourlyActivity.peakRatio.toFixed(1)}× the average hour
-                </span>
+        {/* Productive hours — separate slow query, shows its own skeleton */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5 text-accent" /> Productive hours
+            </CardTitle>
+            <p className="mt-1 text-xs text-slate-500">
+              {hourlyLoading
+                ? 'Crunching a year of commits — first load takes a moment, then it\'s instant.'
+                : 'When you actually commit · last year, UTC'}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {hourlyLoading ? (
+              <Skeleton className="h-[100px] w-full" />
+            ) : hasHourly && hourlyActivity ? (
+              <>
+                <HourlyActivity hours={hourlyActivity.hours} peakHour={hourlyActivity.peakHour} />
+                <div className="mt-3 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500">
+                    Peak at <span className="tabular font-semibold text-accent">{formatHour(hourlyActivity.peakHour)}</span>
+                  </span>
+                  <span className="tabular text-slate-600">
+                    {hourlyActivity.peakRatio.toFixed(1)}× the average hour
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="flex h-[100px] items-center justify-center text-xs text-slate-600">
+                Not enough commit data yet — sync more repos
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="hidden lg:block" />
-        )}
+            )}
+          </CardContent>
+        </Card>
 
         {/* Burnout — only when at risk; supportive copy */}
         {hasBurnout && (

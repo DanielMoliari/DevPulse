@@ -159,9 +159,10 @@ type Query {
   """Get contribution heatmap data"""
   heatmap(year: Int): [HeatmapDayType!]!
 
-  """
-  Differentiating personal insights: hourly pattern, burnout, tech graduations
-  """
+  """Hour-of-day commit pattern — slow first call, 1h cached after"""
+  hourlyActivity: HourlyActivityType
+
+  """Fast personal insights: burnout + tech graduations (no GitHub calls)"""
   insights: InsightsType!
 
   """Cumulative language adoption per year (for streamgraph)"""

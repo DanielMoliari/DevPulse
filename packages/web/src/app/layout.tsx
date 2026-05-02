@@ -9,6 +9,7 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 export const metadata: Metadata = {
   title: 'DevPulse — Developer analytics that make sense',
   description: 'Track your GitHub activity, streaks, and productivity metrics in one place.',
+  icons: { icon: '/favicon.svg' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

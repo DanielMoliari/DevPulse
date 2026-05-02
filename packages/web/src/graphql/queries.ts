@@ -108,10 +108,15 @@ export const LANGUAGE_HISTORY_QUERY = gql`
 export const INSIGHTS_QUERY = gql`
   query Insights {
     insights {
-      hourlyActivity { hours peakHour peakRatio }
       burnout { atRisk consecutiveDays netLinesTrend message }
       techGraduations { from to year confidence message }
     }
+  }
+`
+
+export const HOURLY_ACTIVITY_QUERY = gql`
+  query HourlyActivity {
+    hourlyActivity { hours peakHour peakRatio }
   }
 `
 

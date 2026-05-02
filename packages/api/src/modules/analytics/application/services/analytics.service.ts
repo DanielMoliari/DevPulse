@@ -268,16 +268,21 @@ export class AnalyticsService {
     burnout: { atRisk: boolean; consecutiveDays: number; netLinesTrend: number; message: string } | null
     techGraduations: { from: string; to: string; year: number; confidence: number; message: string }[]
   }> {
-    // Each subcomputation must fail in isolation — the dashboard query waits on this,
-    // so one slow GitHub call shouldn't block burnout (pure compute) or graduations.
+    // hourlyActivity is intentionally NOT fetched here — it makes 20+ GitHub API calls
+    // and would block the dashboard for 20-60s on cold cache. Use the separate
+    // `hourlyActivity` query so the frontend can lazy-load it independently.
     const settle = <T>(p: Promise<T>, fallback: T): Promise<T> =>
       p.catch((err) => { this.logger.warn(`insight subcomputation failed: ${String(err)}`); return fallback })
-    const [hourlyActivity, burnout, techGraduations] = await Promise.all([
-      settle(this.computeHourlyActivity(userId), null),
+    const [burnout, techGraduations] = await Promise.all([
       settle(this.computeBurnoutSignal(userId), null),
       settle(this.computeTechGraduations(userId), [] as { from: string; to: string; year: number; confidence: number; message: string }[]),
     ])
-    return { hourlyActivity, burnout, techGraduations }
+    return { hourlyActivity: null, burnout, techGraduations }
+  }
+
+  // Standalone hourly endpoint — slow first call (1-3 min for active users), 1h cache after.
+  async getHourlyActivity(userId: string) {
+    return this.computeHourlyActivity(userId)
   }
 
   // Sums commit-hour buckets across every tracked repo.

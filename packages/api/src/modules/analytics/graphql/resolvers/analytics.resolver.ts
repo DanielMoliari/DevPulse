@@ -7,6 +7,7 @@ import { StreakService } from '../../application/services/streak.service'
 import {
   DailyMetricsType,
   HeatmapDayType,
+  HourlyActivityType,
   InsightsType,
   LanguageHistoryType,
   MetricsRangeInput,
@@ -83,14 +84,18 @@ export class AnalyticsResolver {
     return this.analyticsService.getLanguageHistory(user.sub)
   }
 
-  @Query(() => InsightsType, { description: 'Differentiating personal insights: hourly pattern, burnout, tech graduations' })
+  @Query(() => InsightsType, { description: 'Fast personal insights: burnout + tech graduations (no GitHub calls)' })
   async insights(@CurrentUser() user: JwtPayload): Promise<InsightsType> {
-    const { hourlyActivity, burnout, techGraduations } = await this.analyticsService.getInsights(user.sub)
+    const { burnout, techGraduations } = await this.analyticsService.getInsights(user.sub)
     return {
-      ...(hourlyActivity ? { hourlyActivity } : {}),
       ...(burnout ? { burnout } : {}),
       techGraduations,
     }
+  }
+
+  @Query(() => HourlyActivityType, { nullable: true, description: 'Hour-of-day commit pattern — slow first call, 1h cached after' })
+  async hourlyActivity(@CurrentUser() user: JwtPayload): Promise<HourlyActivityType | null> {
+    return this.analyticsService.getHourlyActivity(user.sub)
   }
 
   @Query(() => RepoDetailType, { description: 'Detailed insights for a single repository' })

@@ -1,7 +1,7 @@
 'use client'
 
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { Area, AreaChart, ResponsiveContainer } from 'recharts'
+import { Area, AreaChart } from 'recharts'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, formatNumber } from '@/lib/utils'
@@ -74,9 +74,9 @@ export function MetricCard({
         </div>
 
         {sparkline && sparkline.length > 0 && (
-          <div className="h-12 w-24 shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkline} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+          <div className="shrink-0">
+            {/* Use explicit dimensions — ResponsiveContainer measures 0 on first paint inside flex parents */}
+            <AreaChart width={96} height={48} data={sparkline} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
                 <defs>
                   <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
@@ -92,8 +92,7 @@ export function MetricCard({
                   dot={false}
                   isAnimationActive={false}
                 />
-              </AreaChart>
-            </ResponsiveContainer>
+            </AreaChart>
           </div>
         )}
       </div>

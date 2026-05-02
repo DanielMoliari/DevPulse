@@ -134,9 +134,10 @@ export function Heatmap({ data, loading }: HeatmapProps) {
       <div className="mt-2 flex items-center gap-1 justify-end">
         <span className="text-[10px] text-slate-600 mr-1">Less</span>
         {LEVEL_FILL.map((fill, i) => (
-          <rect
+          <span
             key={i}
-            style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, backgroundColor: fill }}
+            className="inline-block rounded-sm"
+            style={{ width: 10, height: 10, backgroundColor: fill }}
           />
         ))}
         <span className="text-[10px] text-slate-600 ml-1">More</span>
