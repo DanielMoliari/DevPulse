@@ -54,12 +54,6 @@ export function LanguageStream({ years, series, height = 320 }: LanguageStreamPr
     const yScale = (v: number) => (v / max) * (H - PAD.top - PAD.bottom)
     const midY = PAD.top + (H - PAD.top - PAD.bottom) / 2
 
-    const layers = series.map((ser) => {
-      const offsets: number[] = years.map(() => 0)
-      // Each series sits on top of the cumulative below
-      return { language: ser.language, values: ser.values, offsets }
-    })
-
     // Compute symmetric (wiggle-zero) baselines: half above, half below
     const halfBelow: number[] = years.map((_, i) => {
       const total = stackTotals[i] ?? 0

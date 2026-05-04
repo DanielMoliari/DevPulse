@@ -4,6 +4,8 @@ import { throttling } from '@octokit/plugin-throttling'
 import { retry } from '@octokit/plugin-retry'
 import type {
   CommitActivityDto,
+  FileChurnDto,
+  FileOwnershipDto,
   GitHubRepoDto,
   IGitHubPort,
   PullRequestDto,
@@ -157,22 +159,30 @@ export class GitHubApiAdapter implements IGitHubPort {
   ): Promise<PullRequestDto[]> {
     const octokit = this.buildClient(accessToken)
     try {
-      const prs = await octokit.paginate(octokit.pulls.list, {
-        owner,
-        repo,
-        state: 'all',
-        per_page: 100,
-        sort: 'updated',
-        direction: 'desc',
+      // List the 20 most recently updated PRs — fetching detail per PR is one extra call each,
+      // so we cap here to avoid burning too much rate limit budget.
+      const list = await octokit.pulls.list({
+        owner, repo, state: 'all', per_page: 20, sort: 'updated', direction: 'desc',
       })
-      return prs
-        .filter((pr) => new Date(pr.created_at) >= since)
-        .map((pr) => ({
+      const recent = list.data.filter((pr) => new Date(pr.created_at) >= since)
+
+      // Fetch individual PR detail (includes changed_files, additions, deletions, title)
+      const details = await Promise.all(
+        recent.map((pr) => octokit.pulls.get({ owner, repo, pull_number: pr.number })),
+      )
+      return details.map((res) => {
+        const pr = res.data
+        return {
           number: pr.number,
+          title: pr.title,
           state: pr.merged_at ? 'merged' : (pr.state as 'open' | 'closed'),
           createdAt: new Date(pr.created_at),
           mergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
-        }))
+          filesChanged: pr.changed_files,
+          additions: pr.additions,
+          deletions: pr.deletions,
+        }
+      })
     } catch {
       return []
     }
@@ -268,6 +278,93 @@ export class GitHubApiAdapter implements IGitHubPort {
     return hours
   }
 
+  async getFileChurn(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    since: Date,
+  ): Promise<FileChurnDto[]> {
+    const octokit = this.buildClient(accessToken)
+    try {
+      const { data: commits } = await octokit.repos.listCommits({
+        owner, repo, since: since.toISOString(), per_page: 30,
+      })
+      const fileMap = new Map<string, { commits: number; additions: number; deletions: number }>()
+      await Promise.all(commits.map(async (c) => {
+        try {
+          const { data: detail } = await octokit.repos.getCommit({ owner, repo, ref: c.sha })
+          for (const f of detail.files ?? []) {
+            const existing = fileMap.get(f.filename)
+            if (existing) {
+              existing.commits++
+              existing.additions += f.additions ?? 0
+              existing.deletions += f.deletions ?? 0
+            } else {
+              fileMap.set(f.filename, { commits: 1, additions: f.additions ?? 0, deletions: f.deletions ?? 0 })
+            }
+          }
+        } catch (err) {
+          this.logger.warn(`getFileChurn: failed to fetch commit ${c.sha}: ${String(err)}`)
+        }
+      }))
+      return [...fileMap.entries()]
+        .map(([path, stats]) => ({ path, ...stats }))
+        .sort((a, b) => b.commits - a.commits)
+        .slice(0, 20)
+    } catch (err) {
+      this.logger.warn(`getFileChurn failed for ${owner}/${repo}: ${String(err)}`)
+      return []
+    }
+  }
+
+  async getAuthenticatedUserLogin(accessToken: string): Promise<string> {
+    const { data } = await this.buildClient(accessToken).users.getAuthenticated()
+    return data.login
+  }
+
+  async getFileOwnership(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    userLogin: string,
+  ): Promise<FileOwnershipDto> {
+    const octokit = this.buildClient(accessToken)
+    let tree: { path?: string; type?: string }[] = []
+    try {
+      const { data } = await octokit.git.getTree({ owner, repo, tree_sha: 'HEAD', recursive: '1' })
+      tree = data.tree
+    } catch {
+      return { ownedFiles: 0, totalFiles: 0, ownershipPercent: 0 }
+    }
+    const codeFiles = tree
+      .filter((f) => f.type === 'blob' && f.path)
+      .filter((f) => !/(node_modules|\.git|dist|build|vendor|__pycache__)/.test(f.path!))
+      .slice(0, 30)
+    const totalFiles = codeFiles.length
+    if (totalFiles === 0) return { ownedFiles: 0, totalFiles: 0, ownershipPercent: 0 }
+    let ownedFiles = 0
+    const CHUNK = 8
+    for (let i = 0; i < codeFiles.length; i += CHUNK) {
+      const chunk = codeFiles.slice(i, i + CHUNK)
+      await Promise.all(chunk.map(async (f) => {
+        try {
+          const { data: commits } = await octokit.repos.listCommits({
+            owner, repo, path: f.path!, per_page: 5,
+          })
+          const userCommits = commits.filter((c) => c.author?.login === userLogin).length
+          if (userCommits >= 2 || (commits.length > 0 && userCommits / commits.length >= 0.4)) {
+            ownedFiles++
+          }
+        } catch { /* skip */ }
+      }))
+    }
+    return {
+      ownedFiles,
+      totalFiles,
+      ownershipPercent: totalFiles > 0 ? Math.round((ownedFiles / totalFiles) * 100) : 0,
+    }
+  }
+
   async getRateLimitStatus(accessToken: string): Promise<{ remaining: number; resetAt: Date }> {
     const octokit = this.buildClient(accessToken)
     try {
@@ -279,6 +376,85 @@ export class GitHubApiAdapter implements IGitHubPort {
     } catch {
       throw new ServiceUnavailableException('Could not reach GitHub API')
     }
+  }
+
+  async getDependencyManifest(
+    accessToken: string,
+    owner: string,
+    repo: string,
+  ): Promise<{ deps: string[]; devDeps: string[]; ecosystem: string } | null> {
+    const octokit = this.buildClient(accessToken)
+
+    const tryFetch = async (path: string): Promise<string | null> => {
+      try {
+        const { data } = await octokit.repos.getContent({ owner, repo, path })
+        if ('content' in data && typeof data.content === 'string') {
+          return Buffer.from(data.content, 'base64').toString('utf-8')
+        }
+      } catch { /* 404 → null */ }
+      return null
+    }
+
+    // package.json — npm
+    const pkgJson = await tryFetch('package.json')
+    if (pkgJson) {
+      try {
+        const parsed = JSON.parse(pkgJson) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }
+        const deps = Object.keys(parsed.dependencies ?? {})
+        const devDeps = Object.keys(parsed.devDependencies ?? {})
+        return { deps, devDeps, ecosystem: 'npm' }
+      } catch { /* malformed */ }
+    }
+
+    // requirements.txt — python
+    const reqTxt = await tryFetch('requirements.txt')
+    if (reqTxt) {
+      const deps = reqTxt.split('\n')
+        .map((l) => l.split(/[=><!\[;]/)[0]?.trim() ?? '')
+        .filter((l) => l && !l.startsWith('#'))
+      return { deps, devDeps: [], ecosystem: 'python' }
+    }
+
+    // go.mod — go
+    const goMod = await tryFetch('go.mod')
+    if (goMod) {
+      const deps = goMod.split('\n')
+        .filter((l) => l.trim().startsWith('require') || (l.startsWith('\t') && !l.includes('//')))
+        .map((l) => l.trim().split(/\s+/)[0] ?? '')
+        .filter((l) => l && l !== 'require' && l !== ')')
+      return { deps, devDeps: [], ecosystem: 'go' }
+    }
+
+    // Cargo.toml — rust
+    const cargoToml = await tryFetch('Cargo.toml')
+    if (cargoToml) {
+      const lines = cargoToml.split('\n')
+      let inDeps = false
+      const deps: string[] = []
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed === '[dependencies]') { inDeps = true; continue }
+        if (trimmed.startsWith('[') && trimmed !== '[dependencies]') { inDeps = false; continue }
+        if (inDeps && trimmed && !trimmed.startsWith('#')) {
+          const key = trimmed.split('=')[0]?.trim()
+          if (key) deps.push(key)
+        }
+      }
+      if (deps.length > 0) return { deps, devDeps: [], ecosystem: 'rust' }
+    }
+
+    // composer.json — php
+    const composerJson = await tryFetch('composer.json')
+    if (composerJson) {
+      try {
+        const parsed = JSON.parse(composerJson) as { require?: Record<string, string>; 'require-dev'?: Record<string, string> }
+        const deps = Object.keys(parsed.require ?? {}).filter((k) => k !== 'php')
+        const devDeps = Object.keys(parsed['require-dev'] ?? {})
+        if (deps.length > 0 || devDeps.length > 0) return { deps, devDeps, ecosystem: 'php' }
+      } catch { /* malformed */ }
+    }
+
+    return null
   }
 
 }

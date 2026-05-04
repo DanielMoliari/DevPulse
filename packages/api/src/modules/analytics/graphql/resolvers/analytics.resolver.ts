@@ -2,11 +2,16 @@ import { UseGuards } from '@nestjs/common'
 import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql'
 import { GqlAuthGuard } from '../../../../common/guards/gql-auth.guard'
 import { CurrentUser, type JwtPayload } from '../../../../common/decorators/current-user.decorator'
-import { AnalyticsService } from '../../application/services/analytics.service'
+import { AnalyticsService, computeHealthScore } from '../../application/services/analytics.service'
 import { StreakService } from '../../application/services/streak.service'
 import {
+  CodeHealthType,
   DailyMetricsType,
+  EcosystemConnectionType,
+  FileHotspotType,
+  FileOwnershipType,
   HeatmapDayType,
+  HeatmapMetric,
   HourlyActivityType,
   InsightsType,
   LanguageHistoryType,
@@ -103,7 +108,7 @@ export class AnalyticsResolver {
     @CurrentUser() user: JwtPayload,
     @Args('id', { type: () => ID }) id: string,
   ): Promise<RepoDetailType> {
-    const { repo, insight, metrics } = await this.analyticsService.getRepositoryDetail(user.sub, id)
+    const { repo, insight, metrics, prsDetail, ecosystemConnections, fileOwnership, fileHotspots } = await this.analyticsService.getRepositoryDetail(user.sub, id)
 
     const totalBytes = Object.values(insight.languages).reduce((s, b) => s + b, 0)
     const languages = Object.entries(insight.languages)
@@ -166,6 +171,8 @@ export class AnalyticsResolver {
       .sort((a, b) => a.date.getTime() - b.date.getTime())
       .map(this.mapMetrics)
 
+    const health: CodeHealthType = computeHealthScore(metrics, insight)
+
     return {
       repository: repo as unknown as RepositoryType,
       ...(insight.description ? { description: insight.description } : {}),
@@ -184,6 +191,11 @@ export class AnalyticsResolver {
       languages,
       recentMetrics,
       curiosities,
+      health,
+      prsDetail: prsDetail ?? [],
+      ecosystemConnections: (ecosystemConnections ?? []) as EcosystemConnectionType[],
+      ...(fileOwnership ? { fileOwnership: fileOwnership as FileOwnershipType } : {}),
+      fileHotspots: (fileHotspots ?? []) as FileHotspotType[],
     }
   }
 
@@ -191,21 +203,42 @@ export class AnalyticsResolver {
   async heatmap(
     @CurrentUser() user: JwtPayload,
     @Args('year', { type: () => Int, nullable: true }) year?: number,
+    @Args('metric', { type: () => HeatmapMetric, nullable: true }) metric?: HeatmapMetric,
   ): Promise<HeatmapDayType[]> {
     const targetYear = year ?? new Date().getFullYear()
     const from = new Date(`${targetYear}-01-01`)
     const to = new Date(`${targetYear}-12-31`)
     const metrics = await this.analyticsService.getDashboardMetrics(user.sub, from, to)
 
-    // Aggregate commits across repos per day so the heatmap shows user-wide activity
+    const activeMetric = metric ?? HeatmapMetric.COMMITS
+
+    // Aggregate the chosen metric across repos per day
     const byDay = new Map<string, number>()
     for (const m of metrics) {
       const dateObj = m.date instanceof Date ? m.date : new Date(m.date as unknown as string)
       const key = dateObj.toISOString().slice(0, 10)
-      byDay.set(key, (byDay.get(key) ?? 0) + m.commits)
+      let value: number
+      if (activeMetric === HeatmapMetric.LINES) {
+        value = m.additions
+      } else if (activeMetric === HeatmapMetric.CHURN) {
+        value = m.additions + m.deletions
+      } else if (activeMetric === HeatmapMetric.PRS) {
+        value = m.prsMerged
+      } else {
+        value = m.commits
+      }
+      byDay.set(key, (byDay.get(key) ?? 0) + value)
     }
+
     return [...byDay.entries()].map(([key, count]) => {
-      const level = count === 0 ? 0 : count <= 2 ? 1 : count <= 5 ? 2 : count <= 10 ? 3 : 4
+      let level: number
+      if (activeMetric === HeatmapMetric.LINES || activeMetric === HeatmapMetric.CHURN) {
+        level = count === 0 ? 0 : count <= 50 ? 1 : count <= 200 ? 2 : count <= 500 ? 3 : 4
+      } else if (activeMetric === HeatmapMetric.PRS) {
+        level = count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count === 3 ? 3 : 4
+      } else {
+        level = count === 0 ? 0 : count <= 2 ? 1 : count <= 5 ? 2 : count <= 10 ? 3 : 4
+      }
       return { date: new Date(key), count, level }
     })
   }

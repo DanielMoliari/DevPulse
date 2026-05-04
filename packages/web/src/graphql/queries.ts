@@ -78,8 +78,8 @@ export const STREAK_QUERY = gql`
 `
 
 export const HEATMAP_QUERY = gql`
-  query Heatmap($year: Int) {
-    heatmap(year: $year) {
+  query Heatmap($year: Int, $metric: HeatmapMetric) {
+    heatmap(year: $year, metric: $metric) {
       date
       count
       level
@@ -132,6 +132,11 @@ export const REPOSITORY_DETAIL_QUERY = gql`
       languages { name bytes percent }
       recentMetrics { id date commits additions deletions prsMerged netLines churnRatio }
       curiosities { label value }
+      health { score grade breakdown { churn consistency mergeRate cadence } }
+      prsDetail { number title state category createdAt mergedAt filesChanged additions deletions }
+      fileOwnership { ownedFiles totalFiles ownershipPercent }
+      fileHotspots { path commits additions deletions churnRatio }
+      ecosystemConnections { repoFullName ecosystem sharedDeps sharedCount overlapScore }
     }
   }
 `

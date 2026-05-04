@@ -4,6 +4,7 @@ import { Flame, GitBranch, Calendar, Code2, Trophy } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import { Heatmap } from '@/components/heatmap'
+import { EmbedCardButton } from '@/components/embed-card-button'
 import { ssrGraphQL } from '@/lib/graphql-ssr'
 import { formatNumber, languageColor } from '@/lib/utils'
 import type { PublicProfile } from '@/graphql/types'
@@ -133,6 +134,9 @@ export default async function PublicProfilePage({ params }: PageProps) {
             <Calendar className="h-3 w-3" />
             {joinedLabel(profile.joinedAt)}
           </p>
+          <div className="mt-3 flex justify-center sm:justify-start">
+            <EmbedCardButton username={profile.username} />
+          </div>
         </div>
       </section>
 

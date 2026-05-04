@@ -19,7 +19,7 @@ export default function ReposPage() {
   const [filter, setFilter] = useState<'all' | 'tracked' | 'untracked'>('all')
 
   const { data, loading } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY)
-  const [trackRepo, { loading: tracking }] = useMutation(TRACK_REPOSITORY, {
+  const [trackRepo] = useMutation(TRACK_REPOSITORY, {
     refetchQueries: [REPOSITORIES_QUERY],
   })
   const [untrackRepo] = useMutation(UNTRACK_REPOSITORY, {

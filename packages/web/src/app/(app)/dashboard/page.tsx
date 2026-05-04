@@ -13,11 +13,18 @@ import { ShareProfileButton } from '@/components/share-profile-button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY, HOURLY_ACTIVITY_QUERY } from '@/graphql/queries'
-import type { DailyMetrics, StreakData, HeatmapDay, Insights } from '@/graphql/types'
+import type { DailyMetrics, HeatmapMetric, StreakData, HeatmapDay, Insights } from '@/graphql/types'
 import { getTrend } from '@/lib/utils'
 import { Coffee, Sparkles, Clock } from 'lucide-react'
 
 type Range = 'week' | 'month' | 'all'
+
+const HEATMAP_MODES: { label: string; value: HeatmapMetric }[] = [
+  { label: 'Commits', value: 'COMMITS' },
+  { label: 'Lines',   value: 'LINES'   },
+  { label: 'Churn',   value: 'CHURN'   },
+  { label: 'PRs',     value: 'PRS'     },
+]
 const RANGES: { label: string; value: Range; kpiLabel: string; chartLabel: string }[] = [
   { label: 'This week',  value: 'week',  kpiLabel: 'this week',  chartLabel: 'last 14 days' },
   { label: 'This month', value: 'month', kpiLabel: 'this month', chartLabel: 'last 30 days' },
@@ -50,6 +57,7 @@ function sum(rows: DailyMetrics[], key: keyof DailyMetrics): number {
 
 export default function DashboardPage() {
   const [range, setRange] = useState<Range>('week')
+  const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('COMMITS')
   const meta = RANGES.find((r) => r.value === range)!
 
   const vars = useMemo(() => rangeFor(range), [range])
@@ -63,7 +71,9 @@ export default function DashboardPage() {
     skip: prevVars === null,
   })
   const { data: streakData, loading: streakLoading } = useQuery<{ streak: StreakData }>(STREAK_QUERY)
-  const { data: heatmapData, loading: heatmapLoading } = useQuery<{ heatmap: HeatmapDay[] }>(HEATMAP_QUERY)
+  const { data: heatmapData, loading: heatmapLoading } = useQuery<{ heatmap: HeatmapDay[] }>(
+    HEATMAP_QUERY, { variables: { metric: heatmapMetric } },
+  )
   const { data: insightsData, loading: insightsLoading } = useQuery<{ insights: Insights }>(INSIGHTS_QUERY)
 
   const metrics = metricsData?.metrics ?? []
@@ -147,7 +157,24 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>Contribution Activity</CardTitle>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <CardTitle>Contribution Activity</CardTitle>
+              <div className="flex gap-1">
+                {HEATMAP_MODES.map(({ label, value }) => (
+                  <button
+                    key={value}
+                    onClick={() => setHeatmapMetric(value)}
+                    className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide transition-colors ${
+                      heatmapMetric === value
+                        ? 'bg-accent/20 text-accent border border-accent/30'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <Heatmap data={heatmapData?.heatmap ?? []} loading={heatmapLoading} />

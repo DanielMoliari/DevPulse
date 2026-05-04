@@ -42,10 +42,6 @@ const TOOLTIP_STYLE = {
   boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
 }
 
-// ── Smart x-axis formatting ───────────────────────────────────────────────
-// When the dataset spans days → "Apr 24"
-// When it spans months in the same year → "Apr"
-// When it crosses years → "Apr '24" (or "2023" at year boundaries)
 function buildAxisFormatter(data: ChartDataPoint[]) {
   if (data.length === 0) return { fmt: () => '', fmtTip: () => '', interval: 0 as const }
 
@@ -55,7 +51,6 @@ function buildAxisFormatter(data: ChartDataPoint[]) {
   const spanDays = (last.getTime() - first.getTime()) / 86_400_000
   const crossesYear = first.getUTCFullYear() !== last.getUTCFullYear()
 
-  // Pick a granularity that won't overflow the axis
   let mode: 'day' | 'month' | 'year'
   if (spanDays <= 45) mode = 'day'
   else if (spanDays <= 730 && !crossesYear) mode = 'month'
@@ -66,13 +61,11 @@ function buildAxisFormatter(data: ChartDataPoint[]) {
     if (mode === 'day') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     if (mode === 'month') {
       const month = d.toLocaleDateString('en-US', { month: 'short' })
-      // If we cross years, append 2-digit year for disambiguation
       return crossesYear ? `${month} '${String(d.getUTCFullYear()).slice(2)}` : month
     }
     return String(d.getUTCFullYear())
   }
 
-  // Tooltip always shows the full, unambiguous date
   const fmtTip = (raw: string) => {
     const d = new Date(raw)
     return d.toLocaleDateString('en-US', {
@@ -80,8 +73,6 @@ function buildAxisFormatter(data: ChartDataPoint[]) {
     })
   }
 
-  // Tick interval — Recharts' "preserveStartEnd" with auto-thinning
-  // Spread ~6-8 ticks across the axis regardless of how many points exist
   const targetTicks = 7
   const interval = Math.max(0, Math.floor(data.length / targetTicks) - 1)
 
@@ -155,51 +146,55 @@ export function ActivityChart({
       itemStyle={{ color: '#f1f5f9', fontSize: 13, fontWeight: 600 }}
       formatter={fmtVal}
       labelFormatter={(label) => fmtTip(String(label ?? ''))}
-      cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+      cursor={{ stroke: 'rgba(255,255,255,0.06)', strokeWidth: 1, fill: 'transparent' }}
     />
   )
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      {type === 'bar' ? (
-        <BarChart {...sharedProps}>
-          <CartesianGrid vertical={false} {...gridStyle} />
-          <XAxis {...xAxisProps} />
-          <YAxis {...yAxisProps} />
-          {TooltipNode}
-          <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={32} />
-        </BarChart>
-      ) : type === 'line' ? (
-        <LineChart {...sharedProps}>
-          <CartesianGrid vertical={false} {...gridStyle} />
-          <XAxis {...xAxisProps} />
-          <YAxis {...yAxisProps} />
-          {TooltipNode}
-          <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: color, stroke: '#0d1117', strokeWidth: 2 }} />
-        </LineChart>
-      ) : (
-        <AreaChart {...sharedProps}>
-          <defs>
-            <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="95%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid vertical={false} {...gridStyle} />
-          <XAxis {...xAxisProps} />
-          <YAxis {...yAxisProps} />
-          {TooltipNode}
-          <Area
-            type="monotone"
-            dataKey="value"
-            stroke={color}
-            strokeWidth={2}
-            fill={`url(#grad-${color.replace('#', '')})`}
-            dot={false}
-            activeDot={{ r: 4, fill: color, stroke: '#0d1117', strokeWidth: 2 }}
-          />
-        </AreaChart>
-      )}
-    </ResponsiveContainer>
+    // onMouseDown prevents the SVG from receiving browser focus on click,
+    // which is what causes the blue outline ring Recharts can't suppress internally.
+    <div onMouseDown={(e) => e.preventDefault()} style={{ outline: 'none' }}>
+      <ResponsiveContainer width="100%" height={height}>
+        {type === 'bar' ? (
+          <BarChart {...sharedProps}>
+            <CartesianGrid vertical={false} {...gridStyle} />
+            <XAxis {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            {TooltipNode}
+            <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} maxBarSize={32} />
+          </BarChart>
+        ) : type === 'line' ? (
+          <LineChart {...sharedProps}>
+            <CartesianGrid vertical={false} {...gridStyle} />
+            <XAxis {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            {TooltipNode}
+            <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: color, stroke: '#0d1117', strokeWidth: 2 }} />
+          </LineChart>
+        ) : (
+          <AreaChart {...sharedProps}>
+            <defs>
+              <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} {...gridStyle} />
+            <XAxis {...xAxisProps} />
+            <YAxis {...yAxisProps} />
+            {TooltipNode}
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={2}
+              fill={`url(#grad-${color.replace('#', '')})`}
+              dot={false}
+              activeDot={{ r: 4, fill: color, stroke: '#0d1117', strokeWidth: 2 }}
+            />
+          </AreaChart>
+        )}
+      </ResponsiveContainer>
+    </div>
   )
 }

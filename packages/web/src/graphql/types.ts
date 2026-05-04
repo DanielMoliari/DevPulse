@@ -1,5 +1,6 @@
 export type Plan = 'FREE' | 'PRO' | 'TEAM'
 export type SyncState = 'IDLE' | 'SYNCING' | 'ERROR'
+export type HeatmapMetric = 'COMMITS' | 'LINES' | 'CHURN' | 'PRS'
 
 export interface User {
   id: string
@@ -106,4 +107,25 @@ export interface Insights {
   hourlyActivity: HourlyActivity | null
   burnout: BurnoutSignal | null
   techGraduations: TechGraduation[]
+}
+
+export interface EcosystemConnection {
+  repoFullName: string
+  ecosystem: string
+  sharedDeps: string[]
+  sharedCount: number
+  overlapScore: number
+}
+
+export interface HealthBreakdown {
+  churn: number
+  consistency: number
+  mergeRate: number
+  cadence: number
+}
+
+export interface CodeHealth {
+  score: number
+  grade: string
+  breakdown: HealthBreakdown
 }

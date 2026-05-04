@@ -9,6 +9,12 @@ type BurnoutSignalType {
   netLinesTrend: Float!
 }
 
+type CodeHealthType {
+  breakdown: HealthBreakdownType!
+  grade: String!
+  score: Float!
+}
+
 type DailyMetricsType {
   additions: Int!
   churnRatio: Float
@@ -27,15 +33,51 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type EcosystemConnectionType {
+  ecosystem: String!
+  overlapScore: Float!
+  repoFullName: String!
+  sharedCount: Int!
+  sharedDeps: [String!]!
+}
+
 input EnablePublicProfileInput {
   """Lowercase, alphanumeric + dash, 3-30 chars"""
   username: String!
+}
+
+type FileHotspotType {
+  additions: Int!
+  churnRatio: Float
+  commits: Int!
+  deletions: Int!
+  path: String!
+}
+
+type FileOwnershipType {
+  ownedFiles: Int!
+  ownershipPercent: Float!
+  totalFiles: Int!
+}
+
+type HealthBreakdownType {
+  cadence: Float!
+  churn: Float!
+  consistency: Float!
+  mergeRate: Float!
 }
 
 type HeatmapDayType {
   count: Int!
   date: DateTime!
   level: Int!
+}
+
+enum HeatmapMetric {
+  CHURN
+  COMMITS
+  LINES
+  PRS
 }
 
 type HourlyActivityType {
@@ -111,6 +153,18 @@ enum Plan {
   TEAM
 }
 
+type PrImpactType {
+  additions: Int!
+  category: String!
+  createdAt: DateTime!
+  deletions: Int!
+  filesChanged: Int!
+  mergedAt: DateTime
+  number: Int!
+  state: String!
+  title: String!
+}
+
 type PublicHeatmapDayType {
   count: Int!
   date: DateTime!
@@ -157,7 +211,7 @@ type PublicRepoType {
 
 type Query {
   """Get contribution heatmap data"""
-  heatmap(year: Int): [HeatmapDayType!]!
+  heatmap(metric: HeatmapMetric, year: Int): [HeatmapDayType!]!
 
   """Hour-of-day commit pattern — slow first call, 1h cached after"""
   hourlyActivity: HourlyActivityType
@@ -202,11 +256,16 @@ type RepoDetailType {
   curiosities: [RepoCuriosityType!]!
   defaultBranch: String!
   description: String
+  ecosystemConnections: [EcosystemConnectionType!]
+  fileHotspots: [FileHotspotType!]
+  fileOwnership: FileOwnershipType
   forks: Int!
+  health: CodeHealthType
   homepage: String
   languages: [LanguageBreakdownType!]!
   license: String
   openIssues: Int!
+  prsDetail: [PrImpactType!]
   pushedAt: DateTime
   recentMetrics: [DailyMetricsType!]!
   repository: RepositoryType!

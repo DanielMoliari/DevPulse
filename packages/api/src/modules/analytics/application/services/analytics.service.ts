@@ -6,8 +6,117 @@ import { QUEUE_SYNC_REPOSITORY } from '../../../../infrastructure/queue/queue.mo
 import { RedisService } from '../../../../infrastructure/cache/redis.service'
 import { IdentityService } from '../../../identity/application/services/identity.service'
 import { PLAN_LIMITS } from '../../../identity/domain/plan-limits'
-import { GITHUB_PORT, type IGitHubPort } from '../../ports/github.port'
+import { GITHUB_PORT, type FileChurnDto, type IGitHubPort, type RepoInsightDto } from '../../ports/github.port'
 import { METRICS_REPOSITORY, type IMetricsRepository } from '../../ports/metrics.repository.port'
+
+export interface HealthBreakdown {
+  churn: number
+  consistency: number
+  mergeRate: number
+  cadence: number
+}
+
+export interface CodeHealthResult {
+  score: number
+  grade: string
+  breakdown: HealthBreakdown
+}
+
+export function computeHealthScore(metrics: DailyMetrics[], insight: RepoInsightDto): CodeHealthResult {
+  // ── Churn score (30%) ────────────────────────────────────────────────────
+  const metricsWithChurn = metrics.filter((m) => m.additions + m.deletions > 0)
+  let churnScore = 60
+  if (metricsWithChurn.length > 0) {
+    const avgChurnRatio =
+      metricsWithChurn.reduce((s, m) => s + m.deletions / (m.additions + m.deletions), 0) /
+      metricsWithChurn.length
+    churnScore =
+      avgChurnRatio < 0.2 ? 100
+      : avgChurnRatio < 0.35 ? 80
+      : avgChurnRatio < 0.5 ? 60
+      : avgChurnRatio < 0.65 ? 40
+      : 20
+  }
+
+  // ── Consistency score (25%) ──────────────────────────────────────────────
+  const ageMs = Date.now() - new Date(insight.createdAt).getTime()
+  const lifetimeDays = Math.max(Math.floor(ageMs / 86_400_000), 1)
+  const activeDays = new Set(
+    metrics
+      .filter((m) => m.commits > 0)
+      .map((m) => {
+        const d = m.date instanceof Date ? m.date : new Date(m.date as unknown as string)
+        return d.toISOString().slice(0, 10)
+      }),
+  ).size
+  const consistencyRatio = activeDays / lifetimeDays
+  const consistencyScore =
+    consistencyRatio > 0.3 ? 100
+    : consistencyRatio > 0.15 ? 80
+    : consistencyRatio > 0.07 ? 60
+    : consistencyRatio > 0.03 ? 40
+    : 20
+
+  // ── Merge rate score (25%) ───────────────────────────────────────────────
+  const totalPrsOpened = metrics.reduce((s, m) => s + m.prsOpened, 0)
+  const totalPrsMerged = metrics.reduce((s, m) => s + m.prsMerged, 0)
+  let mergeRateScore = 70
+  if (totalPrsOpened > 0) {
+    const mergeRatio = totalPrsMerged / totalPrsOpened
+    mergeRateScore =
+      mergeRatio > 0.8 ? 100
+      : mergeRatio > 0.6 ? 80
+      : mergeRatio > 0.4 ? 60
+      : mergeRatio > 0.2 ? 40
+      : 20
+  }
+
+  // ── Cadence score (20%) ──────────────────────────────────────────────────
+  const weeklyCommits = new Map<string, number>()
+  for (const m of metrics) {
+    const d = m.date instanceof Date ? m.date : new Date(m.date as unknown as string)
+    const jan4 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4))
+    const weekNum = Math.ceil(((d.getTime() - jan4.getTime()) / 86_400_000 + jan4.getUTCDay() + 1) / 7)
+    const weekKey = `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`
+    weeklyCommits.set(weekKey, (weeklyCommits.get(weekKey) ?? 0) + m.commits)
+  }
+  const weeks = [...weeklyCommits.values()]
+  let cadenceScore = 60
+  if (weeks.length >= 2) {
+    const mean = weeks.reduce((s, n) => s + n, 0) / weeks.length
+    if (mean > 0) {
+      const variance = weeks.reduce((s, n) => s + (n - mean) ** 2, 0) / weeks.length
+      const cv = Math.sqrt(variance) / mean
+      cadenceScore =
+        cv < 0.5 ? 100
+        : cv < 1.0 ? 80
+        : cv < 1.5 ? 60
+        : cv < 2.0 ? 40
+        : 20
+    }
+  }
+
+  // ── Weighted average ─────────────────────────────────────────────────────
+  const score = Math.round(
+    churnScore * 0.3 +
+    consistencyScore * 0.25 +
+    mergeRateScore * 0.25 +
+    cadenceScore * 0.2,
+  )
+
+  const grade =
+    score >= 90 ? 'A'
+    : score >= 75 ? 'B'
+    : score >= 60 ? 'C'
+    : score >= 45 ? 'D'
+    : 'F'
+
+  return {
+    score,
+    grade,
+    breakdown: { churn: churnScore, consistency: consistencyScore, mergeRate: mergeRateScore, cadence: cadenceScore },
+  }
+}
 
 export interface SyncJobData {
   userId: string
@@ -123,27 +232,118 @@ export class AnalyticsService {
     if (!repo) throw new NotFoundException('Repository not found')
     if (repo.userId !== userId) throw new ForbiddenException('Not your repository')
 
-    const cacheKey = `analytics:repo-insight:${repo.id}`
+    const [owner, name] = repo.fullName.split('/') as [string, string]
+
+    const accessToken = await this.identityService.getDecryptedToken(userId)
+    const since90 = new Date(Date.now() - 90 * 86_400_000)
+
     const insight = await this.redis.getOrSet(
-      cacheKey,
-      async () => {
-        const accessToken = await this.identityService.getDecryptedToken(userId)
-        const [owner, name] = repo.fullName.split('/') as [string, string]
-        return this.github.getRepositoryInsights(accessToken, owner, name)
-      },
+      `analytics:repo-insight:${repo.id}`,
+      () => this.github.getRepositoryInsights(accessToken, owner, name),
       600,
     )
 
-    // All-time slice — backfill window is bounded by the repo's createdAt on GitHub anyway,
-    // so "since createdAt" gives us every metric we ever stored for this repo.
-    const metrics = await this.metricsRepo.getDailyMetrics(
-      userId,
-      new Date(insight.createdAt),
-      new Date(),
-      repo.id,
-    )
+    const [prsDetail, metrics] = await Promise.all([
+      this.redis.getOrSet(
+        `analytics:repo-prs:${repo.id}`,
+        async () => {
+          const prs = await this.github.getPullRequests(accessToken, owner, name, since90)
+          return prs.map((pr) => ({
+            number: pr.number,
+            title: pr.title,
+            state: pr.state,
+            category: this.categorizePR(pr),
+            createdAt: pr.createdAt,
+            ...(pr.mergedAt ? { mergedAt: pr.mergedAt } : {}),
+            filesChanged: pr.filesChanged,
+            additions: pr.additions,
+            deletions: pr.deletions,
+          }))
+        },
+        600,
+      ),
+      this.metricsRepo.getDailyMetrics(userId, new Date(insight.createdAt), new Date(), repo.id),
+    ])
 
-    return { repo, insight, metrics }
+    const [ecosystemConnections, fileOwnership, fileHotspots] = await Promise.all([
+      this.redis.getOrSet(
+        `analytics:ecosystem:${repo.id}`,
+        () => this.getEcosystemConnections(userId, repo),
+        3600,
+      ),
+      this.redis.getOrSet(
+        `analytics:file-ownership:${repo.id}`,
+        async () => {
+          const userLogin = await this.github.getAuthenticatedUserLogin(accessToken)
+          return this.github.getFileOwnership(accessToken, owner, name, userLogin)
+        },
+        7200,
+      ),
+      this.redis.getOrSet(
+        `analytics:file-churn:${repo.id}`,
+        () => this.github.getFileChurn(accessToken, owner, name, since90),
+        3600,
+      ),
+    ])
+
+    return { repo, insight, metrics, prsDetail, ecosystemConnections, fileOwnership, fileHotspots }
+  }
+
+  private categorizePR(pr: { filesChanged: number; additions: number; deletions: number }): 'high-impact' | 'refactor' | 'patch' {
+    const total = pr.additions + pr.deletions
+    if (total < 50 || pr.filesChanged <= 2) return 'patch'
+    if (pr.deletions > pr.additions * 0.7) return 'refactor'
+    return 'high-impact'
+  }
+
+  private async getEcosystemConnections(
+    userId: string,
+    targetRepo: Repository,
+  ): Promise<{ repoFullName: string; ecosystem: string; sharedDeps: string[]; sharedCount: number; overlapScore: number }[]> {
+    const [targetOwner, targetName] = targetRepo.fullName.split('/') as [string, string]
+    const accessToken = await this.identityService.getDecryptedToken(userId)
+    const targetManifest = await this.redis.getOrSet(
+      `analytics:deps:${targetRepo.id}`,
+      () => this.github.getDependencyManifest(accessToken, targetOwner, targetName),
+      3600,
+    )
+    if (!targetManifest || targetManifest.deps.length === 0) return []
+
+    const targetDeps = new Set([...targetManifest.deps, ...targetManifest.devDeps])
+
+    const allRepos = await this.metricsRepo.findRepositoriesByUser(userId, true)
+    const otherRepos = allRepos.filter((r) => r.id !== targetRepo.id)
+
+    const connections: { repoFullName: string; ecosystem: string; sharedDeps: string[]; sharedCount: number; overlapScore: number }[] = []
+
+    const CHUNK = 8
+    for (let i = 0; i < otherRepos.length; i += CHUNK) {
+      const chunk = otherRepos.slice(i, i + CHUNK)
+      await Promise.all(chunk.map(async (r) => {
+        try {
+          const [o, n] = r.fullName.split('/') as [string, string]
+          const manifest = await this.redis.getOrSet(
+            `analytics:deps:${r.id}`,
+            () => this.github.getDependencyManifest(accessToken, o, n),
+            3600,
+          )
+          if (!manifest || manifest.ecosystem !== targetManifest.ecosystem) return
+          const repoDeps = new Set([...manifest.deps, ...manifest.devDeps])
+          const shared = [...targetDeps].filter((d) => repoDeps.has(d))
+          if (shared.length < 2) return
+          const overlapScore = shared.length / Math.min(targetDeps.size, repoDeps.size)
+          connections.push({
+            repoFullName: r.fullName,
+            ecosystem: manifest.ecosystem,
+            sharedDeps: shared.slice(0, 5),
+            sharedCount: shared.length,
+            overlapScore,
+          })
+        } catch { /* skip */ }
+      }))
+    }
+
+    return connections.sort((a, b) => b.overlapScore - a.overlapScore).slice(0, 5)
   }
 
   // Language adoption history: which languages the user picked up and when, derived from

@@ -3,6 +3,15 @@ import { SyncState } from '@prisma/client'
 
 registerEnumType(SyncState, { name: 'SyncState' })
 
+export enum HeatmapMetric {
+  COMMITS = 'COMMITS',
+  LINES = 'LINES',
+  CHURN = 'CHURN',
+  PRS = 'PRS',
+}
+
+registerEnumType(HeatmapMetric, { name: 'HeatmapMetric' })
+
 @ObjectType()
 export class RepositoryType {
   @Field(() => ID)
@@ -180,6 +189,60 @@ export class InsightsType {
 }
 
 @ObjectType()
+export class HealthBreakdownType {
+  @Field(() => Float) churn: number
+  @Field(() => Float) consistency: number
+  @Field(() => Float) mergeRate: number
+  @Field(() => Float) cadence: number
+}
+
+@ObjectType()
+export class CodeHealthType {
+  @Field(() => Float) score: number
+  @Field() grade: string
+  @Field(() => HealthBreakdownType) breakdown: HealthBreakdownType
+}
+
+@ObjectType()
+export class PrImpactType {
+  @Field(() => Int) number: number
+  @Field() title: string
+  @Field() state: string
+  @Field() category: string
+  @Field() createdAt: Date
+  @Field({ nullable: true }) mergedAt?: Date
+  @Field(() => Int) filesChanged: number
+  @Field(() => Int) additions: number
+  @Field(() => Int) deletions: number
+}
+
+
+@ObjectType()
+export class FileHotspotType {
+  @Field() path: string
+  @Field(() => Int) commits: number
+  @Field(() => Int) additions: number
+  @Field(() => Int) deletions: number
+  @Field(() => Float, { nullable: true }) churnRatio?: number | null
+}
+
+@ObjectType()
+export class FileOwnershipType {
+  @Field(() => Int) ownedFiles: number
+  @Field(() => Int) totalFiles: number
+  @Field(() => Float) ownershipPercent: number
+}
+
+@ObjectType()
+export class EcosystemConnectionType {
+  @Field() repoFullName: string
+  @Field() ecosystem: string
+  @Field(() => [String]) sharedDeps: string[]
+  @Field(() => Int) sharedCount: number
+  @Field(() => Float) overlapScore: number
+}
+
+@ObjectType()
 export class RepoDetailType {
   @Field(() => RepositoryType) repository: RepositoryType
 
@@ -204,4 +267,10 @@ export class RepoDetailType {
 
   @Field(() => [DailyMetricsType]) recentMetrics: DailyMetricsType[]
   @Field(() => [RepoCuriosityType]) curiosities: RepoCuriosityType[]
+
+  @Field(() => CodeHealthType, { nullable: true }) health?: CodeHealthType
+  @Field(() => [PrImpactType], { nullable: true }) prsDetail?: PrImpactType[]
+  @Field(() => [EcosystemConnectionType], { nullable: true }) ecosystemConnections?: EcosystemConnectionType[]
+  @Field(() => FileOwnershipType, { nullable: true }) fileOwnership?: FileOwnershipType
+  @Field(() => [FileHotspotType], { nullable: true }) fileHotspots?: FileHotspotType[]
 }

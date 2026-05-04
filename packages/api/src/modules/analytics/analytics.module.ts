@@ -4,6 +4,7 @@ import { QUEUE_SYNC_REPOSITORY } from '../../infrastructure/queue/queue.module'
 import { IdentityModule } from '../identity/identity.module'
 import { GitHubApiAdapter } from './infrastructure/github/github-api.adapter'
 import { PrismaMetricsRepository } from './infrastructure/persistence/prisma-metrics.repository'
+import { CardController } from './infrastructure/http/card.controller'
 import { GITHUB_PORT } from './ports/github.port'
 import { METRICS_REPOSITORY } from './ports/metrics.repository.port'
 import { AnalyticsService } from './application/services/analytics.service'
@@ -18,6 +19,7 @@ import { PublicProfileResolver } from './graphql/resolvers/public-profile.resolv
     BullModule.registerQueue({ name: QUEUE_SYNC_REPOSITORY }),
     IdentityModule,
   ],
+  controllers: [CardController],
   providers: [
     AnalyticsService,
     StreakService,
