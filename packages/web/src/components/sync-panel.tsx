@@ -54,10 +54,10 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
 
   const [rows, setRows] = useState<RepoRow[]>([])
   const [collapsed, setCollapsed] = useState(false)
-  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null)
-  const startedRef = useRef(false)
-  // Track which repo IDs we've actually observed in SYNCING state during this session.
-  // Only those can transition to 'done' — prevents marking IDLE-from-start repos as done.
+  const pollRef       = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startedRef    = useRef(false)
+  const sessionStart  = useRef<number>(0)
+  // IDs observed in SYNCING during this session — primary signal for completion.
   const seenSyncingRef = useRef<Set<string>>(new Set())
 
   // Initialise rows when panel opens
@@ -65,12 +65,12 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
     if (!open) return
     const repos = (data?.repositories ?? []).filter((r) => r.isTracked)
     seenSyncingRef.current = new Set()
+    sessionStart.current = Date.now()
     startedRef.current = false
     setCollapsed(false)
     setRows(repos.map((r) => ({
       id: r.id,
       fullName: r.fullName,
-      // If already syncing in DB when we open, honour that
       status: r.syncState === 'SYNCING' ? 'syncing' : 'queued',
     })))
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -83,7 +83,6 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
   }, [open, rows.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function triggerAll() {
-    // Enqueue all repos — BullMQ dedupes by jobId so no double-processing
     const repos = ((await refetch()).data?.repositories ?? []).filter((r) => r.isTracked)
     await Promise.allSettled(repos.map((r) => syncRepository({ variables: { id: r.id } })))
 
@@ -105,33 +104,37 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
             return { ...row, status: 'error' as const }
           }
 
-          // IDLE — only mark done if we actually saw it syncing
+          // IDLE: primary signal — seen syncing during this session
           if (seenSyncingRef.current.has(row.id)) {
             return { ...row, status: 'done' as const }
           }
 
-          // Still queued waiting for BullMQ to pick it up
+          // Fallback for fast repos that complete between polls:
+          // if lastSyncedAt was updated after we opened the panel, it's done
+          if (live.lastSyncedAt && new Date(live.lastSyncedAt).getTime() >= sessionStart.current) {
+            return { ...row, status: 'done' as const }
+          }
+
           return row
         })
 
-        // Sort: syncing → queued → done → error
         return [...next].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
       })
 
-      const stillRunning = fresh.some((r) => r.isTracked && r.syncState === 'SYNCING')
-      const allQueued    = fresh.filter((r) => r.isTracked).every((r) => r.syncState !== 'SYNCING')
-      const allAccountedFor = allQueued && seenSyncingRef.current.size > 0
+      const trackedFresh = fresh.filter((r) => r.isTracked)
+      const stillRunning = trackedFresh.some((r) => r.syncState === 'SYNCING')
+      const allFinished  = trackedFresh.every(
+        (r) => r.syncState !== 'SYNCING' &&
+               (seenSyncingRef.current.has(r.id) ||
+                (r.lastSyncedAt && new Date(r.lastSyncedAt).getTime() >= sessionStart.current)),
+      )
 
-      if (!stillRunning && allAccountedFor) {
+      if (!stillRunning && allFinished) {
         clearInterval(pollRef.current!)
         pollRef.current = null
-        // Any repo still showing queued that we saw syncing → done
         setRows((prev) =>
-          [...prev.map((r) =>
-            seenSyncingRef.current.has(r.id) && r.status === 'queued'
-              ? { ...r, status: 'done' as const }
-              : r,
-          )].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+          [...prev.map((r) => r.status === 'queued' ? { ...r, status: 'done' as const } : r)]
+            .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
         )
       }
     }, 1500)
