@@ -35,15 +35,16 @@ const RANGES: { label: string; value: Range; days: number | null }[] = [
 ]
 
 function rangeVars(days: number | null) {
-  // day-precision keys keep query variables stable across re-renders within the same day
-  // (millisecond differences would cause Apollo to refetch on every render)
+  // End-of-day UTC so today's commits are always included in the range.
+  // Start-of-day is still used for `from` to keep Apollo cache keys stable within a day.
   const to = new Date()
-  to.setUTCHours(0, 0, 0, 0)
+  to.setUTCHours(23, 59, 59, 999)
   if (days === null) {
     return { from: '2008-01-01T00:00:00.000Z', to: to.toISOString() }
   }
   const from = new Date(to)
   from.setUTCDate(from.getUTCDate() - days)
+  from.setUTCHours(0, 0, 0, 0)
   return { from: from.toISOString(), to: to.toISOString() }
 }
 

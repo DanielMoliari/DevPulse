@@ -32,15 +32,16 @@ const RANGES: { label: string; value: Range; kpiLabel: string; chartLabel: strin
   { label: 'All time',   value: 'all',   kpiLabel: 'all-time',   chartLabel: 'full history' },
 ]
 
-function dayBoundary(daysAgo = 0): Date {
+function dayBoundary(daysAgo = 0, endOfDay = false): Date {
   const d = new Date()
-  d.setUTCHours(0, 0, 0, 0)
   d.setUTCDate(d.getUTCDate() - daysAgo)
+  if (endOfDay) d.setUTCHours(23, 59, 59, 999)
+  else d.setUTCHours(0, 0, 0, 0)
   return d
 }
 
 function rangeFor(r: Range) {
-  const to = dayBoundary(0).toISOString()
+  const to = dayBoundary(0, true).toISOString() // end-of-day so today's commits are included
   if (r === 'all')   return { from: '2008-01-01T00:00:00.000Z', to }
   if (r === 'month') return { from: dayBoundary(29).toISOString(), to }
   return { from: dayBoundary(13).toISOString(), to } // week-on-week needs 14d for trend
