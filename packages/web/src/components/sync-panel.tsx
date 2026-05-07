@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Circle, AlertCircle, RefreshCw, X, ChevronDown, ChevronUp } from 'lucide-react'
-import { useMutation, useQuery } from '@apollo/client/react'
+import { useApolloClient, useMutation, useQuery } from '@apollo/client/react'
 import { REPOSITORIES_QUERY } from '@/graphql/queries'
 import { SYNC_REPOSITORY } from '@/graphql/mutations'
 import type { Repository } from '@/graphql/types'
@@ -46,6 +46,7 @@ function StatusLabel({ status }: { status: RepoSyncStatus }) {
 }
 
 export function SyncPanel({ open, onClose }: SyncPanelProps) {
+  const apollo = useApolloClient()
   const { data, refetch } = useQuery<{ repositories: Repository[] }>(
     REPOSITORIES_QUERY,
     { fetchPolicy: 'network-only' },
@@ -136,6 +137,9 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
           [...prev.map((r) => r.status === 'queued' ? { ...r, status: 'done' as const } : r)]
             .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
         )
+        // Evict all metric/heatmap/streak data from Apollo cache so the next
+        // render fetches fresh data from the server — not stale pre-sync values.
+        await apollo.refetchQueries({ include: ['Metrics', 'Heatmap', 'Streak', 'Dashboard', 'Repositories'] })
       }
     }, 1500)
   }
