@@ -34,9 +34,12 @@ export class SyncRepositoryProcessor extends WorkerHost {
     try {
       const accessToken = await this.identityService.getDecryptedToken(userId)
       const [owner, repo] = fullName.split('/') as [string, string]
-      // Full history — GitHub is a record of years of work, not just the last quarter.
-      // 2008 covers the entire platform lifetime; pagination caps the actual cost.
-      const since = new Date('2008-01-01T00:00:00Z')
+
+      const repoRecord = await this.metricsRepo.findRepositoryById(repositoryId)
+      // Use lastSyncedAt for incremental syncs; fall back to all-time for first sync
+      const since = repoRecord?.lastSyncedAt
+        ? new Date(repoRecord.lastSyncedAt.getTime() - 24 * 60 * 60 * 1000) // 1 day overlap to avoid gaps
+        : new Date('2008-01-01T00:00:00Z')
 
       const [commits, pullRequests, reviews] = await Promise.all([
         this.github.getCommitActivity(accessToken, owner, repo, since),

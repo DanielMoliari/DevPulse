@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useQuery } from '@apollo/client/react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useMutation } from '@apollo/client/react'
 import { MetricCard } from '@/components/metric-card'
 import { Heatmap } from '@/components/heatmap'
 import { ActivityChart } from '@/components/activity-chart'
@@ -12,8 +12,9 @@ import { TechGraduationCard } from '@/components/tech-graduation-card'
 import { ShareProfileButton } from '@/components/share-profile-button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY, HOURLY_ACTIVITY_QUERY } from '@/graphql/queries'
-import type { DailyMetrics, HeatmapMetric, StreakData, HeatmapDay, Insights } from '@/graphql/types'
+import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY, HOURLY_ACTIVITY_QUERY, REPOSITORIES_QUERY } from '@/graphql/queries'
+import { SYNC_REPOSITORY } from '@/graphql/mutations'
+import type { DailyMetrics, HeatmapMetric, StreakData, HeatmapDay, Insights, Repository } from '@/graphql/types'
 import { getTrend } from '@/lib/utils'
 import { Coffee, Sparkles, Clock } from 'lucide-react'
 
@@ -75,6 +76,19 @@ export default function DashboardPage() {
     HEATMAP_QUERY, { variables: { metric: heatmapMetric } },
   )
   const { data: insightsData, loading: insightsLoading } = useQuery<{ insights: Insights }>(INSIGHTS_QUERY)
+
+  const { data: reposData } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY)
+  const [syncRepository] = useMutation(SYNC_REPOSITORY)
+
+  // Silently trigger a background sync for any tracked repo not synced in the last 6 hours
+  useEffect(() => {
+    const repos = reposData?.repositories
+    if (!repos) return
+    const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000
+    repos
+      .filter((r) => r.isTracked && (r.lastSyncedAt === null || new Date(r.lastSyncedAt).getTime() < sixHoursAgo))
+      .forEach((r) => { void syncRepository({ variables: { id: r.id } }) })
+  }, [reposData, syncRepository])
 
   const metrics = metricsData?.metrics ?? []
   const prev = prevData?.metrics ?? []

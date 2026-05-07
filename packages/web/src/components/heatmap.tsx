@@ -42,7 +42,7 @@ export function Heatmap({ data, loading }: HeatmapProps) {
 
   // Build 53-week grid starting from the Sunday 53 weeks ago
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  today.setUTCHours(0, 0, 0, 0)
   const msDay = 86_400_000
   const startSunday = new Date(today.getTime() - (52 * 7 + today.getDay()) * msDay)
 
