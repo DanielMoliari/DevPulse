@@ -12,7 +12,7 @@ interface SyncPanelProps {
   onClose: () => void
 }
 
-type RepoSyncStatus = 'queued' | 'syncing' | 'done' | 'error' | 'idle'
+type RepoSyncStatus = 'queued' | 'syncing' | 'done' | 'error'
 
 interface RepoRow {
   id: string
@@ -20,98 +20,118 @@ interface RepoRow {
   status: RepoSyncStatus
 }
 
+const STATUS_ORDER: Record<RepoSyncStatus, number> = {
+  syncing: 0,
+  queued:  1,
+  done:    2,
+  error:   3,
+}
+
 function StatusIcon({ status }: { status: RepoSyncStatus }) {
-  if (status === 'done')
-    return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
-  if (status === 'error')
-    return <AlertCircle className="h-3.5 w-3.5 shrink-0 text-danger" />
-  if (status === 'syncing')
-    return <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-accent" />
-  if (status === 'queued')
-    return <Circle className="h-3.5 w-3.5 shrink-0 text-slate-600" />
-  return <Circle className="h-3.5 w-3.5 shrink-0 text-slate-700" />
+  if (status === 'done')    return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
+  if (status === 'error')   return <AlertCircle  className="h-3.5 w-3.5 shrink-0 text-danger" />
+  if (status === 'syncing') return <RefreshCw    className="h-3.5 w-3.5 shrink-0 animate-spin text-accent" />
+  return <Circle className="h-3.5 w-3.5 shrink-0 text-slate-600" />
 }
 
 function StatusLabel({ status }: { status: RepoSyncStatus }) {
   const map: Record<RepoSyncStatus, { text: string; cls: string }> = {
-    idle:    { text: 'up to date', cls: 'text-slate-600' },
-    queued:  { text: 'queued',     cls: 'text-slate-500' },
-    syncing: { text: 'syncing…',   cls: 'text-accent' },
-    done:    { text: 'done',       cls: 'text-success' },
-    error:   { text: 'error',      cls: 'text-danger' },
+    queued:  { text: 'queued',   cls: 'text-slate-500' },
+    syncing: { text: 'syncing…', cls: 'text-accent' },
+    done:    { text: 'done',     cls: 'text-success' },
+    error:   { text: 'error',    cls: 'text-danger' },
   }
   const { text, cls } = map[status]
   return <span className={`text-xs tabular ${cls}`}>{text}</span>
 }
 
 export function SyncPanel({ open, onClose }: SyncPanelProps) {
-  const { data, refetch } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY, { fetchPolicy: 'network-only' })
+  const { data, refetch } = useQuery<{ repositories: Repository[] }>(
+    REPOSITORIES_QUERY,
+    { fetchPolicy: 'network-only' },
+  )
   const [syncRepository] = useMutation(SYNC_REPOSITORY)
 
   const [rows, setRows] = useState<RepoRow[]>([])
-  const [started, setStarted] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null)
   const startedRef = useRef(false)
+  // Track which repo IDs we've actually observed in SYNCING state during this session.
+  // Only those can transition to 'done' — prevents marking IDLE-from-start repos as done.
+  const seenSyncingRef = useRef<Set<string>>(new Set())
 
-  const tracked = (data?.repositories ?? []).filter((r) => r.isTracked)
-
-  // Initialise rows from repo list when panel opens
+  // Initialise rows when panel opens
   useEffect(() => {
     if (!open) return
     const repos = (data?.repositories ?? []).filter((r) => r.isTracked)
-    setRows(
-      repos.map((r) => ({
-        id: r.id,
-        fullName: r.fullName,
-        status: r.syncState === 'SYNCING' ? 'syncing' : 'queued',
-      }))
-    )
-    setStarted(false)
+    seenSyncingRef.current = new Set()
     startedRef.current = false
     setCollapsed(false)
+    setRows(repos.map((r) => ({
+      id: r.id,
+      fullName: r.fullName,
+      // If already syncing in DB when we open, honour that
+      status: r.syncState === 'SYNCING' ? 'syncing' : 'queued',
+    })))
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Kick off sync once rows are initialised
+  // Kick off once rows are ready
   useEffect(() => {
     if (!open || rows.length === 0 || startedRef.current) return
     startedRef.current = true
-    setStarted(true)
     void triggerAll()
   }, [open, rows.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function triggerAll() {
+    // Enqueue all repos — BullMQ dedupes by jobId so no double-processing
     const repos = ((await refetch()).data?.repositories ?? []).filter((r) => r.isTracked)
+    await Promise.allSettled(repos.map((r) => syncRepository({ variables: { id: r.id } })))
 
-    // Fire all sync mutations — BullMQ will de-dupe jobs with the same jobId
-    await Promise.allSettled(
-      repos.map((r) => syncRepository({ variables: { id: r.id } }))
-    )
-
-    // Poll every 1.5s and update each row's status from fresh query data
     pollRef.current = setInterval(async () => {
       const result = await refetch()
       const fresh = result.data?.repositories ?? []
 
-      setRows((prev) =>
-        prev.map((row) => {
+      setRows((prev) => {
+        const next = prev.map((row) => {
           const live = fresh.find((r) => r.id === row.id)
           if (!live) return row
-          if (live.syncState === 'SYNCING') return { ...row, status: 'syncing' }
-          if (live.syncState === 'ERROR')   return { ...row, status: 'error' }
-          // IDLE after we started = done
-          if (row.status === 'syncing' || row.status === 'queued') return { ...row, status: 'done' }
+
+          if (live.syncState === 'SYNCING') {
+            seenSyncingRef.current.add(row.id)
+            return { ...row, status: 'syncing' as const }
+          }
+
+          if (live.syncState === 'ERROR') {
+            return { ...row, status: 'error' as const }
+          }
+
+          // IDLE — only mark done if we actually saw it syncing
+          if (seenSyncingRef.current.has(row.id)) {
+            return { ...row, status: 'done' as const }
+          }
+
+          // Still queued waiting for BullMQ to pick it up
           return row
         })
-      )
+
+        // Sort: syncing → queued → done → error
+        return [...next].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+      })
 
       const stillRunning = fresh.some((r) => r.isTracked && r.syncState === 'SYNCING')
-      if (!stillRunning) {
+      const allQueued    = fresh.filter((r) => r.isTracked).every((r) => r.syncState !== 'SYNCING')
+      const allAccountedFor = allQueued && seenSyncingRef.current.size > 0
+
+      if (!stillRunning && allAccountedFor) {
         clearInterval(pollRef.current!)
         pollRef.current = null
-        // Mark any remaining queued as done
+        // Any repo still showing queued that we saw syncing → done
         setRows((prev) =>
-          prev.map((r) => (r.status === 'queued' || r.status === 'syncing' ? { ...r, status: 'done' } : r))
+          [...prev.map((r) =>
+            seenSyncingRef.current.has(r.id) && r.status === 'queued'
+              ? { ...r, status: 'done' as const }
+              : r,
+          )].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
         )
       }
     }, 1500)
@@ -123,9 +143,9 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
 
   if (!open) return null
 
-  const done  = rows.filter((r) => r.status === 'done').length
-  const total = rows.length
-  const allDone = done === total && total > 0
+  const done     = rows.filter((r) => r.status === 'done').length
+  const total    = rows.length
+  const allDone  = total > 0 && rows.every((r) => r.status === 'done' || r.status === 'error')
   const progress = total > 0 ? Math.round((done / total) * 100) : 0
 
   return (
@@ -140,7 +160,7 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
             ].join(' ')}
           />
           <span className="text-sm font-medium text-slate-200 truncate">
-            {allDone ? 'All synced' : `Syncing repositories`}
+            {allDone ? 'All repositories synced' : 'Syncing repositories'}
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -162,37 +182,42 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
       {/* Progress bar */}
       <div className="h-0.5 w-full bg-surface-2">
         <div
-          className="h-full bg-accent transition-all duration-500"
-          style={{ width: `${progress}%`, ...(allDone ? { backgroundColor: 'var(--color-success)' } : {}) }}
+          className="h-full transition-all duration-700"
+          style={{
+            width: `${progress}%`,
+            backgroundColor: allDone ? 'var(--color-success)' : 'var(--color-accent)',
+          }}
         />
       </div>
 
-      {/* Summary line */}
       {!collapsed && (
-        <div className="px-4 py-2 flex items-center justify-between">
-          <span className="text-xs text-slate-500">
-            {allDone ? `${total} repositories up to date` : `${done} / ${total} complete`}
-          </span>
-          <span className="text-xs font-semibold tabular text-slate-400">{progress}%</span>
-        </div>
-      )}
+        <>
+          {/* Summary */}
+          <div className="px-4 py-2 flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              {allDone
+                ? `${total} repositories up to date`
+                : `${done} of ${total} complete`}
+            </span>
+            <span className="text-xs font-semibold tabular text-slate-400">{progress}%</span>
+          </div>
 
-      {/* Repo list */}
-      {!collapsed && (
-        <ul className="max-h-64 overflow-y-auto px-2 pb-2">
-          {rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <StatusIcon status={row.status} />
-                <span className="text-xs text-slate-300 truncate">{row.fullName}</span>
-              </div>
-              <StatusLabel status={row.status} />
-            </li>
-          ))}
-        </ul>
+          {/* Repo list */}
+          <ul className="max-h-64 overflow-y-auto px-2 pb-2">
+            {rows.map((row) => (
+              <li
+                key={row.id}
+                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <StatusIcon status={row.status} />
+                  <span className="text-xs text-slate-300 truncate">{row.fullName}</span>
+                </div>
+                <StatusLabel status={row.status} />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )
