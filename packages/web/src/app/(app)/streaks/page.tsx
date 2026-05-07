@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { STREAK_QUERY, HEATMAP_QUERY, METRICS_QUERY } from '@/graphql/queries'
 import type { StreakData, HeatmapDay, DailyMetrics } from '@/graphql/types'
-import { formatDate, pluralize } from '@/lib/utils'
+import { formatDate, formatRelative, pluralize } from '@/lib/utils'
 
 function yearRange() {
   // day-precision keys keep query variables stable across re-renders
@@ -95,7 +95,7 @@ export default function StreaksPage() {
             )}
             {streak?.lastActiveDate && (
               <p className="mt-2 text-xs text-slate-600">
-                Last active {formatDate(streak.lastActiveDate)}
+                Last active {formatRelative(streak.lastActiveDate)}
               </p>
             )}
           </div>

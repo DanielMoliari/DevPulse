@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Bell, LogOut, RefreshCw, User } from 'lucide-react'
+import { Bell, LogOut, Menu, RefreshCw, User } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useQuery } from '@apollo/client/react'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -12,13 +12,22 @@ import { SyncPanel } from '@/components/sync-panel'
 import { ME_QUERY, REPOSITORIES_QUERY } from '@/graphql/queries'
 import type { Repository, User as UserType } from '@/graphql/types'
 import { clearToken } from '@/lib/auth'
+import { useUIStore } from '@/store/ui-store'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/repos': 'Repositories',
+  '/tech': 'Tech graph',
   '/metrics': 'Metrics',
   '/streaks': 'Streaks',
   '/settings': 'Settings',
+}
+
+function getPageTitle(pathname: string): string {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
+  // /repos/[id] — show repo name from URL segment, resolved by the page itself via <title>
+  if (pathname.startsWith('/repos/')) return 'Repository'
+  return 'DevPulse'
 }
 
 const STALE_MS = 6 * 60 * 60 * 1000
@@ -47,11 +56,12 @@ function formatCountdown(ms: number): string {
 
 export function NavHeader() {
   const pathname = usePathname()
-  const title = PAGE_TITLES[pathname] ?? 'DevPulse'
+  const title = getPageTitle(pathname)
   const { data, loading } = useQuery<{ me: UserType }>(ME_QUERY)
   const { data: reposData } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY)
 
   const [panelOpen, setPanelOpen] = useState(false)
+  const { toggleMobileMenu } = useUIStore()
 
   const tracked = (reposData?.repositories ?? []).filter((r) => r.isTracked)
   const isSyncing = tracked.some((r) => r.syncState === 'SYNCING')
@@ -85,8 +95,17 @@ export function NavHeader() {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-        <h1 className="text-sm font-semibold text-slate-200">{title}</h1>
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 md:px-6">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleMobileMenu}
+            className="cursor-pointer rounded-md p-1.5 text-slate-500 transition-colors hover:bg-surface-2 hover:text-slate-200 md:hidden"
+            aria-label="Open menu"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <h1 className="text-sm font-semibold text-slate-200">{title}</h1>
+        </div>
 
         <div className="flex items-center gap-1">
           {/* Sync button */}

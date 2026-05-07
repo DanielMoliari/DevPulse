@@ -76,7 +76,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 function joinedLabel(iso: string): string {
   const d = new Date(iso)
-  return `Joined ${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+  return `On DevPulse since ${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
 }
 
 function NotFoundState({ username }: { username: string }) {

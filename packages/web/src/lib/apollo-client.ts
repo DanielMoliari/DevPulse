@@ -1,4 +1,5 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client'
+import { CombinedGraphQLErrors } from '@apollo/client/errors'
 import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 import { getToken } from './auth'
@@ -24,10 +25,14 @@ function buildClient() {
   })
 
   const errorLink = onError(({ error }) => {
-    if (typeof window !== 'undefined' && error?.message?.includes('UNAUTHENTICATED')) {
+    const isUnauthenticated = CombinedGraphQLErrors.is(error)
+      ? error.errors.some(
+          (e) => e.extensions?.['code'] === 'UNAUTHENTICATED' || e.message === 'Unauthorized',
+        )
+      : error?.message?.includes('UNAUTHENTICATED') || error?.message?.includes('Unauthorized')
+    if (typeof window !== 'undefined' && isUnauthenticated) {
       window.location.href = '/'
     }
-    if (error) console.error('[Apollo error]', error)
   })
 
   return new ApolloClient({

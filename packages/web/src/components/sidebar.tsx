@@ -11,6 +11,7 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
+  X,
   Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -26,14 +27,80 @@ const NAV = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
-export function Sidebar() {
+function NavLinks({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname()
+  const { sidebarOpen } = useUIStore()
+
+  return (
+    <>
+      {NAV.map(({ href, label, icon: Icon }) => {
+        const active = pathname === href || pathname.startsWith(href + '/')
+        return (
+          <Link
+            key={href}
+            href={href}
+            onClick={onLinkClick}
+            title={!sidebarOpen ? label : undefined}
+            className={cn(
+              'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors',
+              active
+                ? 'bg-accent-dim text-accent'
+                : 'text-slate-500 hover:bg-surface-2 hover:text-slate-200',
+              !sidebarOpen && 'justify-center px-0',
+            )}
+          >
+            <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : '')} />
+            {sidebarOpen && <span>{label}</span>}
+          </Link>
+        )
+      })}
+    </>
+  )
+}
+
+export function MobileDrawer() {
+  const { mobileMenuOpen, setMobileMenuOpen } = useUIStore()
+
+  if (!mobileMenuOpen) return null
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/60 md:hidden"
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      {/* Drawer */}
+      <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-surface md:hidden">
+        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent">
+              <Zap className="h-4 w-4 text-black" fill="currentColor" />
+            </div>
+            <span className="text-sm font-semibold tracking-tight text-slate-100">DevPulse</span>
+          </div>
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="cursor-pointer rounded-md p-1 text-slate-500 hover:text-slate-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <nav className="flex-1 space-y-0.5 p-2 pt-3">
+          <NavLinks onLinkClick={() => setMobileMenuOpen(false)} />
+        </nav>
+      </aside>
+    </>
+  )
+}
+
+export function Sidebar() {
   const { sidebarOpen, toggleSidebar } = useUIStore()
 
   return (
     <aside
       className={cn(
-        'flex h-full flex-col border-r border-border bg-surface transition-all duration-200',
+        'hidden h-full flex-col border-r border-border bg-surface transition-all duration-200 md:flex',
         sidebarOpen ? 'w-52' : 'w-14',
       )}
     >
@@ -49,26 +116,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-0.5 p-2 pt-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
-          return (
-            <Link
-              key={href}
-              href={href}
-              title={!sidebarOpen ? label : undefined}
-              className={cn(
-                'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm transition-colors',
-                active
-                  ? 'bg-accent-dim text-accent'
-                  : 'text-slate-500 hover:bg-surface-2 hover:text-slate-200',
-                !sidebarOpen && 'justify-center px-0',
-              )}
-            >
-              <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : '')} />
-              {sidebarOpen && <span>{label}</span>}
-            </Link>
-          )
-        })}
+        <NavLinks />
       </nav>
 
       {/* Collapse toggle */}

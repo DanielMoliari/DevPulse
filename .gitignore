@@ -39,6 +39,7 @@ CLAUDE.md
 .codeium/
 .copilot/
 .vscode/settings.json
+.planning/
 
 # TypeScript
 *.tsbuildinfo

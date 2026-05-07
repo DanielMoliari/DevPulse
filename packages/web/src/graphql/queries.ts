@@ -120,6 +120,24 @@ export const HOURLY_ACTIVITY_QUERY = gql`
   }
 `
 
+export const SEARCH_PROFILE_QUERY = gql`
+  query SearchProfile($query: String!) {
+    searchProfile(query: $query) {
+      source
+      username
+      displayName
+      avatarUrl
+      bio
+      location
+      followers
+      publicRepos
+      totalCommits
+      currentStreak
+      topLanguages { name percent }
+    }
+  }
+`
+
 export const REPOSITORY_DETAIL_QUERY = gql`
   query RepositoryDetail($id: ID!) {
     repositoryDetail(id: $id) {
