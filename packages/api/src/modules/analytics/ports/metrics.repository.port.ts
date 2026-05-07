@@ -32,6 +32,7 @@ export interface IMetricsRepository {
   setRepositoryTracked(id: string, isTracked: boolean): Promise<void>
   getDailyMetrics(userId: string, from: Date, to: Date, repoId?: string): Promise<DailyMetrics[]>
   batchUpsertMetrics(metrics: UpsertMetricsData[]): Promise<void>
+  findStaleTrackedRepositories(olderThanMs: number): Promise<Repository[]>
   getOrCreateStreak(userId: string): Promise<Streak>
   updateStreak(userId: string, data: Partial<Pick<Streak, 'currentStreak' | 'longestStreak' | 'lastActiveDate'>>): Promise<Streak>
 }

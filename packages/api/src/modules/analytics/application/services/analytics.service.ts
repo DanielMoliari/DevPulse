@@ -1,4 +1,5 @@
 import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { Cron, CronExpression } from '@nestjs/schedule'
 import { InjectQueue } from '@nestjs/bullmq'
 import { Queue } from 'bullmq'
 import type { DailyMetrics, Repository } from '@prisma/client'
@@ -684,5 +685,19 @@ export class AnalyticsService {
       removeOnComplete: true,
     })
     this.logger.log(`Sync job queued for ${fullName}`)
+  }
+
+  async autoSyncStaleRepositories(): Promise<void> {
+    const FIVE_HOURS_MS = 5 * 60 * 60 * 1_000
+    const stale = await this.metricsRepo.findStaleTrackedRepositories(FIVE_HOURS_MS)
+    for (const repo of stale) {
+      await this.enqueueSyncJob(repo.userId, repo.id, repo.fullName)
+    }
+    this.logger.log(`Auto-sync: enqueued ${stale.length} stale repositories`)
+  }
+
+  @Cron(CronExpression.EVERY_6_HOURS)
+  async scheduledSync(): Promise<void> {
+    await this.autoSyncStaleRepositories()
   }
 }

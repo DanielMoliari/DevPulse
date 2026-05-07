@@ -54,6 +54,19 @@ export class PrismaMetricsRepository implements IMetricsRepository {
     await this.prisma.repository.update({ where: { id }, data: { isTracked } })
   }
 
+  findStaleTrackedRepositories(olderThanMs: number): Promise<Repository[]> {
+    const cutoff = new Date(Date.now() - olderThanMs)
+    return this.prisma.repository.findMany({
+      where: {
+        isTracked: true,
+        OR: [
+          { lastSyncedAt: null },
+          { lastSyncedAt: { lt: cutoff } },
+        ],
+      },
+    })
+  }
+
   getDailyMetrics(userId: string, from: Date, to: Date, repoId?: string): Promise<DailyMetrics[]> {
     return this.prisma.dailyMetrics.findMany({
       where: {

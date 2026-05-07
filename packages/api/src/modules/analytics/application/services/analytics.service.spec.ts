@@ -14,6 +14,7 @@ const makeMockMetricsRepo = (): IMetricsRepository => ({
   upsertRepository: vi.fn(),
   updateRepositorySyncState: vi.fn(),
   setRepositoryTracked: vi.fn(),
+  findStaleTrackedRepositories: vi.fn(),
   getDailyMetrics: vi.fn(),
   batchUpsertMetrics: vi.fn(),
   getOrCreateStreak: vi.fn(),
