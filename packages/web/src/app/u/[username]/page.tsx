@@ -7,6 +7,7 @@ import { Heatmap } from '@/components/heatmap'
 import { EmbedCardButton } from '@/components/embed-card-button'
 import { ssrGraphQL } from '@/lib/graphql-ssr'
 import { formatNumber, languageColor } from '@/lib/utils'
+import { BrandLogo } from '@/components/brand-logo'
 import type { PublicProfile } from '@/graphql/types'
 
 const PROFILE_QUERY = `
@@ -83,7 +84,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ? `${profile.currentStreak}-day streak · `
       : ''
     const description = `${streakBlurb}${formatNumber(profile.totalCommits)} commits · ${profile.activeDays} active days in the last year`
-    const title = `${profile.displayName} on DevPulse`
+    const title = `${profile.displayName} on reflog`
     return {
       title,
       description,
@@ -117,14 +118,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: 'Profile not found · DevPulse',
-    description: `@${username} was not found on DevPulse or GitHub.`,
+    title: 'Profile not found · reflog',
+    description: `@${username} was not found on reflog or GitHub.`,
   }
 }
 
 function joinedLabel(iso: string): string {
   const d = new Date(iso)
-  return `On DevPulse since ${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+  return `On reflog since ${d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
 }
 
 function NotFoundState({ username }: { username: string }) {
@@ -135,13 +136,13 @@ function NotFoundState({ username }: { username: string }) {
       </div>
       <h1 className="text-2xl font-bold text-slate-100">No profile here</h1>
       <p className="mt-3 text-sm leading-relaxed text-slate-500">
-        <span className="font-mono text-slate-300">@{username}</span> doesn&apos;t exist on DevPulse or GitHub.
+        <span className="font-mono text-slate-300">@{username}</span> doesn&apos;t exist on reflog or GitHub.
       </p>
       <Link
         href="/"
         className="mt-8 inline-flex items-center gap-2 rounded-md border border-border-2 bg-surface-2 px-4 py-2 text-sm text-slate-200 hover:bg-surface-3 transition-colors"
       >
-        Track your own pulse with DevPulse
+        Track your own pulse with reflog
       </Link>
     </div>
   )
@@ -261,7 +262,7 @@ function GitHubProfilePage({ gh }: { gh: GithubProfile }) {
           href="/"
           className="mt-4 inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/90 transition-colors"
         >
-          Track your pulse with DevPulse
+          Track your pulse with reflog
         </Link>
       </footer>
     </div>
@@ -423,7 +424,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
       <footer className="pt-6 pb-12 text-center">
         <p className="text-xs text-slate-600">
           Built with{' '}
-          <Link href="/" className="text-accent hover:underline">DevPulse</Link>
+          <Link href="/" className="text-accent hover:underline">reflog</Link>
           {' '}— track your own developer pulse
         </p>
       </footer>

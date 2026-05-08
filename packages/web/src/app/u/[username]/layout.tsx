@@ -1,7 +1,6 @@
-import Link from 'next/link'
-import { Zap } from 'lucide-react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import { BrandLogo } from '@/components/brand-logo'
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:17642'
 
@@ -13,12 +12,7 @@ export default function PublicProfileLayout({ children }: { children: React.Reac
       <div className="min-h-full bg-bg text-slate-100">
         <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-6">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent transition-transform group-hover:scale-105">
-                <Zap className="h-4 w-4 text-black" fill="currentColor" />
-              </div>
-              <span className="font-semibold tracking-tight">DevPulse</span>
-            </Link>
+            <BrandLogo />
             <Button asChild size="sm" variant="outline">
               <a href={`${API_URL}/api/v1/auth/github`}>Sign in with GitHub</a>
             </Button>

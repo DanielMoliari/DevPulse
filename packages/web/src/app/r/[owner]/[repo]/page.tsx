@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   Star, GitFork, CircleDot, Clock, ExternalLink,
-  Code2, Users, Calendar, ArrowLeft, FileCode2, Zap,
+  Code2, Users, Calendar, ArrowLeft, FileCode2,
 } from 'lucide-react'
 import { ssrGraphQL } from '@/lib/graphql-ssr'
 import { formatNumber, formatRelative, languageColor } from '@/lib/utils'
+import { BrandLogo } from '@/components/brand-logo'
 
 const REPO_QUERY = `
   query SearchRepo($owner: String!, $repo: String!) {
@@ -257,12 +258,7 @@ export default async function RepoPage({ params }: PageProps) {
       {/* Nav */}
       <nav className="sticky top-0 z-10 border-b border-white/[0.06] bg-[#0f0f0f]/90 backdrop-blur-md">
         <div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-4 md:px-6">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent">
-              <Zap className="h-4 w-4 text-black" fill="currentColor" />
-            </div>
-            reflog
-          </Link>
+          <BrandLogo />
           <Link
             href={`https://github.com/${data.fullName}`}
             target="_blank"
@@ -449,8 +445,8 @@ export default async function RepoPage({ params }: PageProps) {
           className="rounded-2xl border p-8 text-center"
           style={{ borderColor: `${primaryColor}33`, background: `${primaryColor}08` }}
         >
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-accent">
-            <Zap className="h-5 w-5 text-black" fill="currentColor" />
+          <div className="mx-auto mb-3">
+            <BrandLogo size="md" href="/" />
           </div>
           <p className="text-sm font-semibold text-slate-200 mb-1">Track your repos on reflog</p>
           <p className="text-xs text-slate-500 mb-5 max-w-sm mx-auto">

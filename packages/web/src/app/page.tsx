@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { Zap, GitCommit, Flame, BarChart3, GitPullRequest, ArrowRight, Check } from 'lucide-react'
+import { GitCommit, Flame, BarChart3, GitPullRequest, ArrowRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BrandLogo } from '@/components/brand-logo'
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:17642'
 
@@ -49,12 +50,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="fixed inset-x-0 top-0 z-50 border-b border-border bg-bg/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent">
-              <Zap className="h-4 w-4 text-black" fill="currentColor" />
-            </div>
-            <span className="font-semibold tracking-tight">DevPulse</span>
-          </div>
+          <BrandLogo />
           <div className="flex items-center gap-3">
             <Link href="#pricing" className="text-sm text-slate-500 hover:text-slate-200 transition-colors">
               Pricing
@@ -214,10 +210,8 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border px-6 py-8 text-center text-sm text-slate-600">
         <div className="flex items-center justify-center gap-2">
-          <div className="flex h-5 w-5 items-center justify-center rounded bg-accent">
-            <Zap className="h-3 w-3 text-black" fill="currentColor" />
-          </div>
-          <span>DevPulse © {new Date().getFullYear()}</span>
+          <BrandLogo size="sm" href="/" />
+          <span>© {new Date().getFullYear()}</span>
         </div>
       </footer>
     </div>

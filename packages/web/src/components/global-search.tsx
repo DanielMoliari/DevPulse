@@ -301,7 +301,7 @@ export function GlobalSearch() {
                     <span className="font-semibold text-slate-100 leading-none">{result.displayName}</span>
                     {result.source === 'devpulse' ? (
                       <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent leading-none">
-                        DevPulse
+                        reflog
                       </span>
                     ) : (
                       <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-500 leading-none">

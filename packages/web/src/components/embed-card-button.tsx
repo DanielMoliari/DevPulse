@@ -13,7 +13,7 @@ export function EmbedCardButton({ username }: EmbedCardButtonProps) {
   const [copied, setCopied] = useState(false)
 
   const cardUrl = `https://devpulse.app/api/v1/card/${username}`
-  const markdown = `![DevPulse card](${cardUrl})`
+  const markdown = `![reflog card](${cardUrl})`
 
   function handleCopy() {
     void navigator.clipboard.writeText(markdown).then(() => {
