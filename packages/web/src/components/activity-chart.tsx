@@ -212,9 +212,6 @@ export function ActivityChart({
     axisLine: false,
     tickLine: false,
     width: 40,
-    label: yLabel
-      ? { value: yLabel, angle: -90, position: 'insideLeft' as const, fill: '#475569', fontSize: 11 }
-      : undefined,
     tickFormatter: formatValue
       ? (v: number) => formatValue(v)
       : (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toString()),
