@@ -13,8 +13,6 @@ import { ME_QUERY, REPOSITORIES_QUERY } from '@/graphql/queries'
 import {
   UPDATE_PROFILE,
   UPDATE_NOTIFICATION_PREFS,
-  ENABLE_PUBLIC_PROFILE,
-  DISABLE_PUBLIC_PROFILE,
 } from '@/graphql/mutations'
 import type { User as UserType } from '@/graphql/types'
 import { clearToken } from '@/lib/auth'
@@ -75,14 +73,6 @@ export default function SettingsPage() {
   const [updateNotificationPrefs, { loading: savingPrefs }] = useMutation(UPDATE_NOTIFICATION_PREFS, {
     refetchQueries: [ME_QUERY],
   })
-  const [enablePublicProfile, { loading: enablingPublic }] = useMutation<
-    { enablePublicProfile: UserType },
-    { input: { username: string } }
-  >(ENABLE_PUBLIC_PROFILE, { refetchQueries: [ME_QUERY] })
-  const [disablePublicProfile, { loading: disablingPublic }] = useMutation(DISABLE_PUBLIC_PROFILE, {
-    refetchQueries: [ME_QUERY],
-  })
-
   const user = data?.me
   const repos = reposData?.repositories ?? []
 
@@ -121,10 +111,6 @@ export default function SettingsPage() {
   function handleDisconnect() {
     clearToken()
     window.location.href = '/'
-  }
-
-  function handleDisablePublic() {
-    void disablePublicProfile()
   }
 
   function handleCopyUrl() {
@@ -217,25 +203,6 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Make profile public toggle */}
-          <div className="flex items-center justify-between rounded-md border border-border-2 bg-surface px-3 py-2.5">
-            <div>
-              <p className="text-xs font-medium text-slate-200">Make profile public</p>
-              <p className="text-[11px] text-slate-600">Share a read-only page at <span className="font-mono">/u/{'{username}'}</span></p>
-            </div>
-            <Switch
-              checked={!!user?.publicProfile}
-              onCheckedChange={(next) => {
-                if (next && !user?.username) return
-                if (next) {
-                  void enablePublicProfile({ variables: { input: { username: user!.username! } } })
-                } else {
-                  handleDisablePublic()
-                }
-              }}
-              disabled={loading || disablingPublic || enablingPublic || (!user?.publicProfile && !user?.username)}
-            />
-          </div>
         </div>
 
         <Button onClick={handleSave} disabled={saving || loading} size="sm">
