@@ -1,326 +1,252 @@
 # DevPulse — Architecture
 
-## Hexagonal Architecture (Ports & Adapters)
+## Overview
 
-The API follows a strict Hexagonal Architecture (also known as Ports & Adapters). Business logic lives in the domain core and has zero knowledge of infrastructure. Infrastructure adapters implement port interfaces defined by the domain.
+Monorepo (`pnpm workspaces`) with two packages:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         INFRASTRUCTURE                               │
-│                                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────┐  ┌────────────┐  │
-│  │  GitHub API  │  │  PostgreSQL  │  │  Redis   │  │   Resend   │  │
-│  │  (Octokit)   │  │  (Prisma)    │  │  Cache   │  │   Email    │  │
-│  └──────┬───────┘  └──────┬───────┘  └────┬─────┘  └─────┬──────┘  │
-│         │                 │               │               │         │
-│  ┌──────▼───────┐  ┌──────▼───────┐  ┌────▼─────┐  ┌─────▼──────┐  │
-│  │  GitHubApi   │  │    Prisma    │  │  Redis   │  │   Resend   │  │
-│  │  Adapter     │  │  Repositories│  │  Adapter │  │  Adapter   │  │
-│  └──────┬───────┘  └──────┬───────┘  └────┬─────┘  └─────┬──────┘  │
-│         │                 │               │               │         │
-├─────────┼─────────────────┼───────────────┼───────────────┼─────────┤
-│         │          PORTS (Interfaces)      │               │         │
-│  ┌──────▼───────┐  ┌──────▼───────┐  ┌────▼─────┐  ┌─────▼──────┐  │
-│  │ IGitHubPort  │  │ IMetricsRepo │  │ ICachePort│  │ INotifPort │  │
-│  └──────┬───────┘  └──────┬───────┘  └────┬─────┘  └─────┬──────┘  │
-│         │                 │               │               │         │
-├─────────┼─────────────────┼───────────────┼───────────────┼─────────┤
-│         │           DOMAIN CORE            │               │         │
-│  ┌──────▼─────────────────▼───────────────▼───────────────▼──────┐  │
-│  │                                                                 │  │
-│  │  Analytics Service  │  Streak Service  │  Digest Service       │  │
-│  │  ─────────────────────────────────────────────────────────     │  │
-│  │  User Aggregate     │  Repository Aggregate                    │  │
-│  │  DailyMetrics Agg   │  WeeklyDigest Aggregate                  │  │
-│  │  ─────────────────────────────────────────────────────────     │  │
-│  │  Domain Events: UserConnectedGitHub, RepositorySynced, ...     │  │
-│  │                                                                 │  │
-│  └─────────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-├─────────────────────────────────────────────────────────────────────┤
-│                    DRIVING ADAPTERS (Inputs)                         │
-│                                                                      │
-│  ┌──────────────┐  ┌───────────────┐  ┌──────────────────────────┐  │
-│  │  GraphQL     │  │  REST (GitHub │  │  BullMQ Job Queue        │  │
-│  │  Resolvers   │  │  Webhooks)    │  │  (sync scheduler)        │  │
-│  └──────────────┘  └───────────────┘  └──────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-```
+| Package | Tech | Port |
+|---|---|---|
+| `packages/api` | NestJS 11 + Fastify | 17642 |
+| `packages/web` | Next.js 15 App Router | 38929 |
+
+The API follows **DDD + Hexagonal Architecture** (ports & adapters). The frontend is a pure client-side SPA for authenticated routes, with SSR only for the two public-facing pages (`/u/[username]`, `/r/[owner]/[repo]`).
 
 ---
 
-## NestJS Module Structure
-
-Each NestJS module maps 1:1 to a bounded context or infrastructure concern.
+## API: Bounded Contexts
 
 ```
-packages/api/src/
-├── main.ts
-├── app.module.ts
-│
-├── modules/
-│   ├── identity/                    # Identity bounded context
-│   │   ├── identity.module.ts
-│   │   ├── domain/
-│   │   │   ├── entities/user.entity.ts
-│   │   │   ├── value-objects/github-profile.vo.ts
-│   │   │   └── events/user-connected-github.event.ts
-│   │   ├── application/
-│   │   │   ├── commands/connect-github.command.ts
-│   │   │   └── queries/get-current-user.query.ts
-│   │   ├── infrastructure/
-│   │   │   ├── persistence/prisma-user.repository.ts
-│   │   │   └── http/auth.controller.ts
-│   │   └── ports/
-│   │       └── user.repository.port.ts
-│   │
-│   ├── analytics/                   # Analytics bounded context
-│   │   ├── analytics.module.ts
-│   │   ├── domain/
-│   │   │   ├── entities/
-│   │   │   │   ├── repository.entity.ts
-│   │   │   │   └── daily-metrics.entity.ts
-│   │   │   ├── value-objects/
-│   │   │   │   ├── commit-stats.vo.ts
-│   │   │   │   ├── review-stats.vo.ts
-│   │   │   │   └── streak-record.vo.ts
-│   │   │   └── events/
-│   │   │       ├── repository-synced.event.ts
-│   │   │       └── streak-broken.event.ts
-│   │   ├── application/
-│   │   │   ├── services/
-│   │   │   │   ├── analytics.service.ts
-│   │   │   │   └── streak.service.ts
-│   │   │   └── jobs/
-│   │   │       └── sync-repository.job.ts
-│   │   ├── infrastructure/
-│   │   │   ├── persistence/
-│   │   │   │   ├── prisma-metrics.repository.ts
-│   │   │   │   └── prisma-repository.repository.ts
-│   │   │   └── github/
-│   │   │       └── github-api.adapter.ts
-│   │   └── ports/
-│   │       ├── github.port.ts
-│   │       └── metrics.repository.port.ts
-│   │
-│   ├── notifications/               # Notifications bounded context
-│   │   ├── notifications.module.ts
-│   │   ├── domain/
-│   │   │   └── entities/weekly-digest.entity.ts
-│   │   ├── application/
-│   │   │   └── services/digest.service.ts
-│   │   ├── infrastructure/
-│   │   │   └── email/resend.adapter.ts
-│   │   └── ports/
-│   │       └── notification.service.port.ts
-│   │
-│   └── billing/                     # Billing bounded context
-│       ├── billing.module.ts
-│       ├── domain/
-│       │   └── value-objects/plan.vo.ts
-│       └── application/
-│           └── services/billing.service.ts
-│
-├── infrastructure/                  # Shared infrastructure
-│   ├── database/
-│   │   ├── prisma.service.ts
-│   │   └── prisma.module.ts
-│   ├── cache/
-│   │   ├── redis.service.ts
-│   │   └── redis.module.ts
-│   ├── queue/
-│   │   └── queue.module.ts
-│   └── crypto/
-│       └── encryption.service.ts    # AES-256-GCM for tokens
-│
-└── graphql/                         # GraphQL layer
-    ├── schema.gql
-    └── resolvers/
-        ├── user.resolver.ts
-        ├── repository.resolver.ts
-        └── metrics.resolver.ts
+packages/api/src/modules/
+├── identity/       — User, GitHub OAuth, JWT, public profile management
+├── analytics/      — Repos, metrics, streaks, tech graph, insights, sync pipeline
+├── notifications/  — Weekly digest email (Resend), streak alerts
+└── webhooks/       — GitHub webhook ingestion (pushes trigger re-sync)
 ```
+
+Each module follows the same internal layout:
+
+```
+<module>/
+├── <module>.module.ts
+├── application/
+│   ├── services/          — orchestration, caching, business logic
+│   └── jobs/              — BullMQ processors
+├── domain/
+│   ├── entities/          — pure TypeScript, no framework deps
+│   └── value-objects/
+├── graphql/
+│   ├── resolvers/         — NestJS @Resolver classes
+│   └── types/             — @ObjectType / @InputType / enums
+├── infrastructure/
+│   ├── persistence/       — Prisma repository implementations
+│   ├── github/            — Octokit adapter
+│   └── http/              — REST controllers (auth, card image)
+└── ports/                 — TypeScript interfaces (IGitHubPort, IMetricsRepository, …)
+```
+
+Domain services depend only on port interfaces injected via NestJS DI. They never import adapters or infrastructure directly.
 
 ---
 
-## Ports (Interfaces)
+## Key Services
 
-### IGitHubPort
+### AnalyticsService
+Central orchestrator for all analytics. Redis-cached (`getOrSet` helper).
+
+- `getDashboardMetrics(userId, from, to)` — daily metrics aggregated across repos, 5m TTL
+- `getTechGraph(userId)` — repo × language constellation data, 1h TTL
+- `getLanguageHistory(userId)` — year-over-year language adoption, 1h TTL
+- `getHourlyActivity(userId)` — real UTC hour buckets from GitHub commit history, 1h TTL
+- `getInsights(userId)` — burnout signal + tech graduations, derived from stored metrics
+- `getRepositoryDetail(userId, repoId)` — full repo insights: health score, PR impact, file hotspots, ecosystem connections, curiosities, 10m TTL
+- `triggerSync(userId, repoId)` — enqueues BullMQ job, deduped by job ID `sync-{repoId}`
+- `scheduledSync()` — 6-hour cron, re-syncs all repos with `lastSyncedAt` older than 6h
+- `invalidateDashboardCache(userId)` — called after sync completes
+
+### SyncRepositoryProcessor (BullMQ, concurrency=5)
+Ingests one repository's history from GitHub into `DailyMetrics` rows.
+
+1. Sets `syncState = SYNCING`
+2. Fetches commits, PRs, reviews from `IGitHubPort` incrementally (since `lastSyncedAt − 1 day`)
+3. Aggregates into per-day buckets (`commits`, `additions`, `deletions`, `prsOpened`, `prsMerged`, `reviewsDone`)
+4. `batchUpsertMetrics` — upsert on composite unique key `(userId, repoId, date)`
+5. Sets `syncState = IDLE`, stamps `lastSyncedAt`, recalculates streak, invalidates Redis cache
+
+### PublicProfileService
+Builds and caches the anonymous-readable public profile for `/u/[username]`.
+
+- Checks user's `publicProfile` opt-in flag; returns null if not opted in
+- Assembles: top 5 languages from tech graph, last-365-days heatmap, all-time commit total, streak (if `publicShowStreak`), tracked public repos (if `publicShowRepos`)
+- Cached in Redis at `public-profile:{username}`, 5m TTL
+- `invalidate(username)` called after any public profile pref mutation
+- **Redis deserialization trap**: dates come back as JSON strings; coerce to `Date` before GraphQL serialization
+
+### StreakService
+Recalculates streak from raw `DailyMetrics` after every sync.
+
+- Uses `StreakCalculator` (pure domain logic, `packages/api/src/modules/analytics/domain/`)
+- Upserts `Streak` row, triggers Resend streak alert email when threshold crossed
+
+### GitHubLookupService
+Anonymous GitHub API fallback for `searchProfile` and `searchRepo`.
+
+- Used when queried username is not in DevPulse
+- Returns top repos, languages, bio, follower count from public GitHub API
+- No auth token; subject to 60 req/hour anonymous rate limit
+
+---
+
+## Ports (actual interfaces as implemented)
+
+### IGitHubPort (`analytics/ports/github.port.ts`)
 ```typescript
-// ports/github.port.ts
-export interface IGitHubPort {
-  getAuthenticatedUser(accessToken: string): Promise<GitHubUserDto>
-  getUserRepositories(accessToken: string): Promise<GitHubRepoDto[]>
-  getCommitActivity(
-    accessToken: string,
-    owner: string,
-    repo: string,
-    since: Date,
-    until: Date,
-  ): Promise<CommitActivityDto[]>
-  getPullRequests(
-    accessToken: string,
-    owner: string,
-    repo: string,
-    since: Date,
-  ): Promise<PullRequestDto[]>
-  getReviews(
-    accessToken: string,
-    owner: string,
-    repo: string,
-    since: Date,
-  ): Promise<ReviewDto[]>
-  registerWebhook(
-    accessToken: string,
-    owner: string,
-    repo: string,
-    webhookUrl: string,
-    events: string[],
-  ): Promise<GitHubWebhookDto>
-}
-
-export const GITHUB_PORT = Symbol('IGitHubPort')
+getAuthenticatedUser(token: string): Promise<GitHubUserDto>
+getUserRepositories(token: string): Promise<GitHubRepoDto[]>        // includes pushed_at
+getCommitActivity(token, owner, repo, since): Promise<CommitActivityDto[]>
+getPullRequests(token, owner, repo, since): Promise<PullRequestDto[]>
+getReviews(token, owner, repo, since): Promise<ReviewDto[]>
+getRepositoryInsights(token, owner, repo): Promise<RepoInsightsDto>
+getRepositoryLanguages(token, owner, repo): Promise<Record<string,number>>
+getRepositoryFileTree(token, owner, repo): Promise<string[]>
+getDependencyManifest(token, owner, repo): Promise<string | null>
+getCommitHours(token, owner, repo): Promise<number[]>               // 24-element array
 ```
 
-### IMetricsRepository
+### IMetricsRepository (`analytics/ports/metrics.repository.port.ts`)
 ```typescript
-// ports/metrics.repository.port.ts
-export interface IMetricsRepository {
-  findByUserAndDateRange(
-    userId: string,
-    from: Date,
-    to: Date,
-  ): Promise<DailyMetrics[]>
-  findByUserAndRepo(
-    userId: string,
-    repositoryId: string,
-    from: Date,
-    to: Date,
-  ): Promise<DailyMetrics[]>
-  upsertDailyMetrics(metrics: DailyMetrics): Promise<void>
-  batchUpsert(metrics: DailyMetrics[]): Promise<void>
-  getStreakForUser(userId: string): Promise<StreakRecord | null>
-  updateStreak(userId: string, streak: StreakRecord): Promise<void>
-}
-
-export const METRICS_REPOSITORY_PORT = Symbol('IMetricsRepository')
+findRepositoriesByUser(userId, trackedOnly?): Promise<Repository[]>
+findRepositoryById(repoId): Promise<Repository | null>
+upsertRepository(data): Promise<Repository>
+updateRepositorySyncState(repoId, state, pushedAt?, lastSyncedAt?): Promise<void>
+getDailyMetrics(userId, from, to, repoId?): Promise<DailyMetrics[]>
+batchUpsertMetrics(metrics[]): Promise<void>
+getStreak(userId): Promise<Streak | null>
+upsertStreak(userId, data): Promise<Streak>
 ```
 
-### INotificationService
+### IUserRepository (`identity/ports/user.repository.port.ts`)
 ```typescript
-// ports/notification.service.port.ts
-export interface INotificationService {
-  sendWeeklyDigest(
-    userId: string,
-    email: string,
-    digest: DigestSummary,
-  ): Promise<void>
-  sendStreakAlert(
-    userId: string,
-    email: string,
-    streakLength: number,
-  ): Promise<void>
-  sendMilestoneReached(
-    userId: string,
-    email: string,
-    milestone: string,
-  ): Promise<void>
-}
-
-export const NOTIFICATION_SERVICE_PORT = Symbol('INotificationService')
+findById(id): Promise<User | null>
+findByGithubId(githubId): Promise<User | null>
+findByUsername(username): Promise<User | null>
+upsert(data): Promise<User>
+update(id, data): Promise<User>
 ```
 
 ---
 
-## Adapters (Implementations)
+## Data Flows
 
-### GitHubApiAdapter
-- Uses `@octokit/rest` under the hood
-- Applies exponential backoff on 429 (rate limit exceeded)
-- Caches responses in Redis with TTL matching GitHub's `Cache-Control` headers
-- Translates Octokit types → domain DTOs
-
-### PrismaMetricsRepository
-- Implements `IMetricsRepository` using Prisma Client
-- Uses `upsert` with composite unique keys for idempotent ingestion
-- Batch operations use `$transaction` for atomicity
-
-### ResendNotificationAdapter
-- Implements `INotificationService` using Resend SDK
-- Templates stored as React Email components
-- Tracks delivery status in `weekly_digests.sentAt`
-
-### RedisCacheAdapter
-- Generic TTL-based cache wrapper
-- Key strategy: `{context}:{entityType}:{id}:{qualifier}`
-- Example: `analytics:github:user123:repos`
-
----
-
-## Dependency Injection (NestJS)
-
-Adapters are bound to port symbols in each module's `providers` array:
-
-```typescript
-// analytics.module.ts
-@Module({
-  providers: [
-    {
-      provide: GITHUB_PORT,
-      useClass: GitHubApiAdapter,
-    },
-    {
-      provide: METRICS_REPOSITORY_PORT,
-      useClass: PrismaMetricsRepository,
-    },
-    AnalyticsService,
-    StreakService,
-  ],
-})
-export class AnalyticsModule {}
+### Authenticated Dashboard Request
+```
+Frontend (Apollo Client, JWT in Authorization header)
+  → POST /api/graphql
+  → GqlAuthGuard validates JWT (passport-jwt)
+  → GraphQL resolver → AnalyticsService.getDashboardMetrics(userId, from, to)
+  → Redis cache check (analytics:dashboard:{userId}:{from}:{to}, 5m TTL)
+  → Cache miss: IMetricsRepository.getDailyMetrics → Prisma → PostgreSQL
+  → Response marshalled as ObjectType and returned
 ```
 
-Domain services receive ports via constructor injection and never import adapters directly.
-
----
-
-## Data Flow: Repository Sync
-
+### Repository Sync
 ```
-1. Cron / Webhook trigger
-        │
-        ▼
-2. SyncRepositoryJob (queue consumer)
-        │
-        ▼
-3. AnalyticsService.syncRepository(userId, repoId)
-        │
-        ├─► IGitHubPort.getCommitActivity(...)   ← GitHub API
-        ├─► IGitHubPort.getPullRequests(...)      ← GitHub API
-        │
-        ▼
-4. Build DailyMetrics aggregates from raw data
-        │
-        ▼
-5. IMetricsRepository.batchUpsert(metrics)        ← PostgreSQL
-        │
-        ▼
-6. StreakService.recalculate(userId)
-        │
-        ├─ if streak broken → emit StreakBroken event
-        │
-        ▼
-7. Emit RepositorySynced domain event
-        │
-        └─► Notifications context listener        ← async
+syncRepository mutation  OR  6-hour cron
+  → AnalyticsService.triggerSync → BullMQ enqueue (job ID: sync-{repoId})
+  → SyncRepositoryProcessor.process (concurrency=5)
+      → updateRepositorySyncState(SYNCING)
+      → getDecryptedToken → IGitHubPort × 3 (commits, PRs, reviews)
+      → aggregate into per-day map
+      → batchUpsertMetrics
+      → updateRepositorySyncState(IDLE, lastSyncedAt)
+      → StreakService.recalculate
+      → AnalyticsService.invalidateDashboardCache
+  → Frontend polls repositories query until syncState = IDLE
+```
+
+### Public Profile (SSR)
+```
+Next.js Server Component: /u/[username]/page.tsx
+  → ssrGraphQL (plain fetch, no JWT, Next.js ISR revalidate: 60s)
+  → publicProfile resolver → PublicProfileService.getPublicProfile
+      → Redis cache (public-profile:{username}, 5m TTL)
+      → Cache miss: identity.findByUsername, parallel: streak, techGraph, repos, allMetrics
+      → Build PublicProfileData, cache it
+  → Falls back to GitHubLookupService.lookup for non-DevPulse usernames
+
+og:image (Edge runtime): /u/[username]/opengraph-image
+  → Fetches same publicProfile query independently
+  → Renders 1200×627 PNG via ImageResponse/Satori (inline styles only, display:flex required)
+  → Revalidates every 300s
 ```
 
 ---
 
-## Security Considerations
+## Frontend Architecture
 
-- **GitHub access tokens** encrypted with AES-256-GCM before storage (key from `JWT_SECRET` derivative via HKDF)
-- **Webhook signatures** verified via HMAC-SHA256 before any payload processing
-- **JWT** signed with RS256 in production; HS256 acceptable in development
-- **Rate limiting** applied at the API gateway level (Fastify + `@nestjs/throttler`)
-- All cross-context communication via domain events — no direct module imports across bounded context boundaries
+### Data Fetching
+- **Apollo Client 4** with `InMemoryCache` for all authenticated data
+- `fetchPolicy: 'network-only'` on all metric queries to prevent stale charts
+- `resetStore()` called after sync completes to force full refetch
+- **ssrGraphQL** (`packages/web/src/lib/graphql-ssr.ts`) — plain `fetch` for public SSR pages only
+
+### State Management
+- **Apollo InMemoryCache** — all server state
+- **Zustand** (`packages/web/src/store/ui-store.ts`) — sidebar open/collapsed, mobile menu open
+
+### Routing
+```
+app/
+├── page.tsx                    — Marketing landing (public)
+├── auth/callback/page.tsx      — OAuth token handler → localStorage → /dashboard
+├── u/[username]/
+│   ├── page.tsx                — Public profile (SSR, ISR 60s)
+│   └── opengraph-image.tsx     — OG image (Edge, revalidate 300s)
+├── r/[owner]/[repo]/page.tsx   — Public repo analysis (SSR)
+└── (app)/                      — Auth-gated, sidebar layout
+    ├── dashboard/page.tsx
+    ├── repos/
+    │   ├── page.tsx
+    │   └── [id]/page.tsx
+    ├── streaks/page.tsx
+    ├── metrics/page.tsx
+    ├── tech/page.tsx
+    └── settings/page.tsx
+```
+
+### Authentication Guard
+`packages/web/src/components/providers.tsx` checks localStorage for JWT. If absent, redirects to `/`. Apollo Client sends it as `Authorization: Bearer {token}` on every request.
+
+---
+
+## Infrastructure
+
+### PostgreSQL 16
+Schema tables: `User`, `Repository`, `DailyMetrics`, `Streak`, `WeeklyDigest`, `Webhook`
+
+`DailyMetrics` composite unique key `(userId, repoId, date)` enables idempotent upsert-based incremental sync.
+
+Connection via Prisma 7 + `@prisma/adapter-pg` (explicit driver adapter — `url` is in `prisma.config.ts`, not `schema.prisma`).
+
+### Redis 7
+Used for:
+- Application cache (10+ namespaces, 5m–2h TTLs)
+- BullMQ job queue storage
+
+Key namespaces: `analytics:dashboard:*`, `analytics:tech-graph:*`, `analytics:repo-insight:*`, `analytics:hourly:*`, `analytics:lang-history:*`, `analytics:ecosystem:*`, `analytics:deps:*`, `analytics:file-ownership:*`, `analytics:file-churn:*`, `analytics:repo-prs:*`, `public-profile:*`
+
+### BullMQ
+Queue: `QUEUE_SYNC_REPOSITORY`. Job ID: `sync-{repositoryId}` (deduplicates concurrent sync requests for same repo). Worker concurrency: 5.
+
+---
+
+## Security
+
+- **GitHub access tokens** — AES-256-GCM encrypted at rest (`packages/api/src/infrastructure/crypto/`)
+- **JWT** — HS256, validated by `passport-jwt` via `GqlAuthGuard` on all authenticated resolvers
+- **Public resolvers** (`publicProfile`, `searchProfile`, `searchRepo`) — no auth guard; public by design
+- **Rate limiting** — `@nestjs/throttler` on REST endpoints; `@octokit/plugin-throttling` + `plugin-retry` on GitHub API calls
+- **Plan limits** — `packages/api/src/modules/identity/domain/plan-limits.ts` enforced at `trackRepository` mutation
+
+---
+
+*Last updated: 2026-05-08*
