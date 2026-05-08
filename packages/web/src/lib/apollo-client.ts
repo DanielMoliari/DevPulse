@@ -4,7 +4,10 @@ import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 import { getToken } from './auth'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// In dev, attach the client to globalThis so Fast Refresh doesn't create a
+// new instance (with a fresh empty cache) on every hot reload — which would
+// cause every query to start from scratch and show skeletons indefinitely.
+declare const globalThis: typeof global & { __apolloClient?: ApolloClient }
 let _client: ApolloClient | null = null
 
 function buildClient() {
@@ -46,6 +49,10 @@ function buildClient() {
 }
 
 export function getApolloClient() {
+  if (process.env.NODE_ENV === 'development') {
+    if (!globalThis.__apolloClient) globalThis.__apolloClient = buildClient()
+    return globalThis.__apolloClient
+  }
   if (!_client) _client = buildClient()
   return _client
 }
