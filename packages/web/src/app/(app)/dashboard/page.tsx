@@ -184,46 +184,44 @@ export default function DashboardPage() {
       </div>
 
       {/* Heatmap + Radial day-of-week */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px] items-start">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <CardTitle>Contribution Activity</CardTitle>
-              <div className="flex gap-1">
-                {HEATMAP_MODES.map(({ label, value }) => (
-                  <button
-                    key={value}
-                    onClick={() => setHeatmapMetric(value)}
-                    className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide transition-colors ${
-                      heatmapMetric === value
-                        ? 'bg-accent/20 text-accent border border-accent/30'
-                        : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle>Contribution Activity</CardTitle>
+            <div className="flex gap-1">
+              {HEATMAP_MODES.map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => setHeatmapMetric(value)}
+                  className={`cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide transition-colors ${
+                    heatmapMetric === value
+                      ? 'bg-accent/20 text-accent border border-accent/30'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          </CardHeader>
-          <CardContent>
-            <Heatmap data={heatmapData?.heatmap ?? []} loading={heatmapLoading} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Day-of-week rhythm</CardTitle>
-            <p className="mt-1 text-xs text-slate-500">When the work actually happens</p>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center">
-            {metricsLoading ? (
-              <Skeleton className="h-[320px] w-[320px] rounded-full" />
-            ) : (
-              <ActivityRadial data={metrics.map((m) => ({ date: m.date, commits: m.commits }))} size={240} />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+            <div className="min-w-0 flex-1">
+              <Heatmap data={heatmapData?.heatmap ?? []} loading={heatmapLoading} />
+            </div>
+            <div className="flex flex-col items-center gap-2 lg:w-[220px] lg:shrink-0">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Day-of-week rhythm</div>
+              <p className="text-[11px] text-slate-500">When the work actually happens</p>
+              {metricsLoading ? (
+                <Skeleton className="h-[200px] w-[200px] rounded-full" />
+              ) : (
+                <ActivityRadial data={metrics.map((m) => ({ date: m.date, commits: m.commits }))} size={200} />
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Section divider: Personal insights ── */}
       <div className="flex items-center gap-3">
