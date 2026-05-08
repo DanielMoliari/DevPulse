@@ -108,9 +108,9 @@ export function GlobalSearch() {
 
   const navigateRepo = useCallback(() => {
     if (parsed.mode !== 'repo') return
-    window.open(`https://github.com/${parsed.owner}/${parsed.repo}`, '_blank', 'noopener')
+    router.push(`/r/${parsed.owner}/${parsed.repo}`)
     closeModal()
-  }, [parsed, closeModal])
+  }, [parsed, router, closeModal])
 
   const handleEnter = useCallback(() => {
     if (parsed.mode === 'repo') { navigateRepo(); return }
@@ -187,7 +187,7 @@ export function GlobalSearch() {
                 <span className="text-slate-600">Repository</span>
                 <span className="font-mono text-slate-400">{parsed.owner}/</span>
                 <span className="font-mono font-semibold text-slate-200">{parsed.repo}</span>
-                <span className="ml-auto text-slate-700">↵ open on GitHub</span>
+                <span className="ml-auto text-slate-700">↵ view analysis</span>
               </>
             ) : (
               <>
@@ -218,12 +218,11 @@ export function GlobalSearch() {
                   <span className="text-slate-500">/</span>
                   {debouncedParsed.mode === 'repo' ? debouncedParsed.repo : parsed.mode === 'repo' ? parsed.repo : ''}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-600">Open repository on GitHub</p>
+                <p className="mt-0.5 text-xs text-slate-600">View repository analysis</p>
               </div>
-              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-700 group-hover:text-slate-500 transition-colors" />
             </div>
             <div className="border-t border-white/[0.05] px-4 py-2 flex items-center justify-between text-[11px] text-slate-700">
-              <span>Opens github.com in new tab</span>
+              <span>Opens full repo analysis</span>
               <kbd className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px]">↵</kbd>
             </div>
           </button>

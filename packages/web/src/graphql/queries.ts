@@ -141,6 +141,27 @@ export const SEARCH_PROFILE_QUERY = gql`
   }
 `
 
+export const SEARCH_REPO_QUERY = gql`
+  query SearchRepo($owner: String!, $repo: String!) {
+    searchRepo(owner: $owner, repo: $repo) {
+      fullName
+      description
+      primaryLanguage
+      stars
+      forks
+      openIssues
+      sizeKb
+      createdAt
+      pushedAt
+      homepage
+      topics
+      languages { name bytes percent }
+      contributors { login avatarUrl contributions }
+      weeklyCommits { week total }
+    }
+  }
+`
+
 export const REPOSITORY_DETAIL_QUERY = gql`
   query RepositoryDetail($id: ID!) {
     repositoryDetail(id: $id) {

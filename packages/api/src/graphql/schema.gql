@@ -239,12 +239,24 @@ type Query {
   """Detailed insights for a single repository"""
   repositoryDetail(id: ID!): RepoDetailType!
   searchProfile(query: String!): SearchProfileResultType
+  searchRepo(owner: String!, repo: String!): SearchRepoResultType
 
   """Get current streak stats"""
   streak: StreakType
 
   """User-wide tech graph: every tracked repo × every language it uses"""
   techGraph: TechGraphType!
+}
+
+type RepoCommitWeekType {
+  total: Int!
+  week: Int!
+}
+
+type RepoContributorType {
+  avatarUrl: String
+  contributions: Int!
+  login: String!
 }
 
 type RepoCuriosityType {
@@ -275,6 +287,12 @@ type RepoDetailType {
   topics: [String!]!
   totalBytes: Int!
   watchers: Int!
+}
+
+type RepoLanguageType {
+  bytes: Int!
+  name: String!
+  percent: Float!
 }
 
 type RepositoryType {
@@ -313,6 +331,23 @@ type SearchProfileResultType {
   topRepos: [SearchProfileRepoType!]
   totalCommits: Int
   username: String!
+}
+
+type SearchRepoResultType {
+  contributors: [RepoContributorType!]!
+  createdAt: String!
+  description: String
+  forks: Int!
+  fullName: String!
+  homepage: String
+  languages: [RepoLanguageType!]!
+  openIssues: Int!
+  primaryLanguage: String
+  pushedAt: String!
+  sizeKb: Int!
+  stars: Int!
+  topics: [String!]!
+  weeklyCommits: [RepoCommitWeekType!]!
 }
 
 type StreakType {

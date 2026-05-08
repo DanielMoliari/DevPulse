@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { SearchRepoResultType } from '../../graphql/types/search-profile.type'
 
 // Anonymous GitHub API — 60 req/h per IP. Good enough for a search bar.
 // No token needed, no user data stored.
@@ -111,6 +112,58 @@ export class GitHubLookupService {
       },
       topRepos,
       topLanguages,
+    }
+  }
+
+  async lookupRepo(owner: string, repo: string): Promise<SearchRepoResultType | null> {
+    const path = `/repos/${owner}/${repo}`
+
+    const [rawRepo, rawLangs, rawContribs, rawActivity] = await Promise.all([
+      this.ghFetch<Record<string, unknown>>(path),
+      this.ghFetch<Record<string, number>>(`${path}/languages`),
+      this.ghFetch<Record<string, unknown>[]>(`${path}/contributors?per_page=10`),
+      this.ghFetch<{ week: number; total: number; days: number[] }[]>(`${path}/stats/commit_activity`),
+    ])
+
+    if (!rawRepo || rawRepo['message'] === 'Not Found') return null
+
+    const totalBytes = Object.values(rawLangs ?? {}).reduce((s, b) => s + b, 0)
+    const languages = Object.entries(rawLangs ?? {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, bytes]) => ({
+        name,
+        bytes,
+        percent: totalBytes > 0 ? Math.round((bytes / totalBytes) * 1000) / 10 : 0,
+      }))
+
+    const contributors = (rawContribs ?? []).slice(0, 8).map((c) => ({
+      login: String(c['login'] ?? ''),
+      ...(c['avatar_url'] ? { avatarUrl: String(c['avatar_url']) } : {}),
+      contributions: Number(c['contributions'] ?? 0),
+    }))
+
+    // GitHub returns 202 while computing stats — rawActivity may be null or non-array
+    const activityArr = Array.isArray(rawActivity) ? rawActivity : []
+    const weeklyCommits = activityArr.slice(-52).map((w) => ({
+      week: w.week,
+      total: w.total,
+    }))
+
+    return {
+      fullName: String(rawRepo['full_name'] ?? `${owner}/${repo}`),
+      ...(rawRepo['description'] ? { description: String(rawRepo['description']) } : {}),
+      ...(rawRepo['language'] ? { primaryLanguage: String(rawRepo['language']) } : {}),
+      stars: Number(rawRepo['stargazers_count'] ?? 0),
+      forks: Number(rawRepo['forks_count'] ?? 0),
+      openIssues: Number(rawRepo['open_issues_count'] ?? 0),
+      sizeKb: Number(rawRepo['size'] ?? 0),
+      createdAt: String(rawRepo['created_at'] ?? ''),
+      pushedAt: String(rawRepo['pushed_at'] ?? ''),
+      ...(rawRepo['homepage'] ? { homepage: String(rawRepo['homepage']) } : {}),
+      topics: Array.isArray(rawRepo['topics']) ? (rawRepo['topics'] as string[]) : [],
+      languages,
+      contributors,
+      weeklyCommits,
     }
   }
 }

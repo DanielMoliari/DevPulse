@@ -11,7 +11,7 @@ import { PublicProfileType } from '../../../identity/graphql/types/public-profil
 import { UserType } from '../../../identity/graphql/types/user.type'
 import { PublicProfileService } from '../../application/services/public-profile.service'
 import { GitHubLookupService } from '../../application/services/github-lookup.service'
-import { SearchProfileResultType } from '../types/search-profile.type'
+import { SearchProfileResultType, SearchRepoResultType } from '../types/search-profile.type'
 
 @Resolver(() => PublicProfileType)
 export class PublicProfileResolver {
@@ -67,6 +67,16 @@ export class PublicProfileResolver {
         stargazersCount: r.stargazersCount,
       })),
     }
+  }
+
+  // ── Repo search — no auth required ──────────────────────────────────────
+  @Query(() => SearchRepoResultType, { nullable: true, name: 'searchRepo' })
+  async searchRepo(
+    @Args('owner') owner: string,
+    @Args('repo') repo: string,
+  ): Promise<SearchRepoResultType | null> {
+    if (!owner.trim() || !repo.trim()) return null
+    return this.gitHubLookupService.lookupRepo(owner.trim(), repo.trim())
   }
 
   // ── Public read query ────────────────────────────────────────────────────
