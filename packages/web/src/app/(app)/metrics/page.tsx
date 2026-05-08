@@ -173,6 +173,7 @@ export default function MetricsPage() {
                 type="area"
                 height={260}
                 loading={loading}
+                yLabel="commits"
               />
             </CardContent>
           </Card>
@@ -189,6 +190,7 @@ export default function MetricsPage() {
                   color="#a78bfa"
                   height={220}
                   loading={loading}
+                  yLabel="PRs opened"
                 />
               </CardContent>
             </Card>
@@ -201,6 +203,7 @@ export default function MetricsPage() {
                   color="#22c55e"
                   height={220}
                   loading={loading}
+                  yLabel="PRs merged"
                 />
               </CardContent>
             </Card>
@@ -218,6 +221,7 @@ export default function MetricsPage() {
                   color="#06b6d4"
                   height={220}
                   loading={loading}
+                  yLabel="net lines"
                 />
               </CardContent>
             </Card>
@@ -234,6 +238,7 @@ export default function MetricsPage() {
                   height={220}
                   formatValue={(v) => `${v}%`}
                   loading={loading}
+                  yLabel="churn ratio"
                 />
               </CardContent>
             </Card>

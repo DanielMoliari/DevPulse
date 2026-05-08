@@ -253,6 +253,7 @@ export default function DashboardPage() {
               data={metrics.map((m) => ({ date: m.date, value: m.commits }))}
               type="area"
               height={220}
+              yLabel="commits"
             />
           )}
         </CardContent>
@@ -273,6 +274,7 @@ export default function DashboardPage() {
                 type="bar"
                 color="#22c55e"
                 height={180}
+                yLabel="net lines"
               />
             )}
           </CardContent>
@@ -290,6 +292,7 @@ export default function DashboardPage() {
                 type="line"
                 color="#a78bfa"
                 height={180}
+                yLabel="PRs merged"
               />
             )}
           </CardContent>
