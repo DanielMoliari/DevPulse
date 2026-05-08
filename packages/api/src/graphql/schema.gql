@@ -314,7 +314,7 @@ type RepositoryType {
   language: String
   lastSyncedAt: DateTime
   linesAdded: Int
-  pushedAt: String
+  pushedAt: DateTime
   syncState: SyncState!
 }
 

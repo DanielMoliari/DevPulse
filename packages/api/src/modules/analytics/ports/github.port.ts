@@ -39,6 +39,7 @@ export interface GitHubRepoDto {
   fullName: string
   language: string | null
   private: boolean
+  pushedAt: Date | null
 }
 
 export interface RepoInsightDto {

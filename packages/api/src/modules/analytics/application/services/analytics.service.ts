@@ -173,6 +173,7 @@ export class AnalyticsService {
         githubRepoId: String(ghRepo.id),
         fullName: ghRepo.fullName,
         language: ghRepo.language,
+        pushedAt: ghRepo.pushedAt,
         isTracked: true,
         isPrivate: ghRepo.private,
       })
@@ -201,6 +202,7 @@ export class AnalyticsService {
       githubRepoId,
       fullName: target.fullName,
       language: target.language,
+      pushedAt: target.pushedAt,
       isPrivate: target.private,
     })
 

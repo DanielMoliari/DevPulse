@@ -27,6 +27,7 @@ export class PrismaMetricsRepository implements IMetricsRepository {
     githubRepoId: string
     fullName: string
     language: string | null
+    pushedAt?: Date | null
     isTracked?: boolean
     isPrivate?: boolean
   }): Promise<Repository> {
@@ -34,8 +35,13 @@ export class PrismaMetricsRepository implements IMetricsRepository {
     return this.prisma.repository.upsert({
       where: { userId_githubRepoId: { userId: data.userId, githubRepoId: data.githubRepoId } },
       create: { ...rest, isTracked, isPrivate },
-      // Update visibility on every sync — repos can flip from private to public on GitHub
-      update: { fullName: data.fullName, language: data.language, isPrivate },
+      // Update visibility and pushedAt on every sync
+      update: {
+        fullName: data.fullName,
+        language: data.language,
+        isPrivate,
+        ...(data.pushedAt !== undefined ? { pushedAt: data.pushedAt } : {}),
+      },
     })
   }
 
@@ -43,10 +49,15 @@ export class PrismaMetricsRepository implements IMetricsRepository {
     id: string,
     state: 'IDLE' | 'SYNCING' | 'ERROR',
     lastSyncedAt?: Date,
+    pushedAt?: Date,
   ): Promise<void> {
     await this.prisma.repository.update({
       where: { id },
-      data: { syncState: state, ...(lastSyncedAt ? { lastSyncedAt } : {}) },
+      data: {
+        syncState: state,
+        ...(lastSyncedAt ? { lastSyncedAt } : {}),
+        ...(pushedAt ? { pushedAt } : {}),
+      },
     })
   }
 

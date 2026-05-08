@@ -39,7 +39,7 @@ export class RepositoryType {
   linesAdded?: number
 
   @Field({ nullable: true })
-  pushedAt?: string
+  pushedAt?: Date
 }
 
 @ObjectType()

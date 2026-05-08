@@ -28,6 +28,7 @@ export interface IMetricsRepository {
     githubRepoId: string
     fullName: string
     language: string | null
+    pushedAt?: Date | null
     isTracked?: boolean
     isPrivate?: boolean
   }): Promise<Repository>
@@ -35,6 +36,7 @@ export interface IMetricsRepository {
     id: string,
     state: 'IDLE' | 'SYNCING' | 'ERROR',
     lastSyncedAt?: Date,
+    pushedAt?: Date,
   ): Promise<void>
   setRepositoryTracked(id: string, isTracked: boolean): Promise<void>
   getDailyMetrics(userId: string, from: Date, to: Date, repoId?: string): Promise<DailyMetrics[]>

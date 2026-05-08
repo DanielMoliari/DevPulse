@@ -93,7 +93,13 @@ export class SyncRepositoryProcessor extends WorkerHost {
         await this.metricsRepo.batchUpsertMetrics(metricsToUpsert)
       }
 
-      await this.metricsRepo.updateRepositorySyncState(repositoryId, 'IDLE', new Date())
+      // Derive the most recent commit date from the fetched activity to update pushedAt.
+      // This gives us an accurate "last pushed" timestamp without an extra API call.
+      const latestCommitDate = commits.length > 0
+        ? commits.reduce((max, c) => (c.date > max ? c.date : max), commits[0]!.date)
+        : undefined
+
+      await this.metricsRepo.updateRepositorySyncState(repositoryId, 'IDLE', new Date(), latestCommitDate)
       await this.streakService.recalculate(userId)
       await this.analyticsService.invalidateDashboardCache(userId)
 

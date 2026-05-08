@@ -49,6 +49,7 @@ export class GitHubApiAdapter implements IGitHubPort {
       fullName: r.full_name,
       language: r.language ?? null,
       private: r.private,
+      pushedAt: r.pushed_at ? new Date(r.pushed_at) : null,
     }))
   }
 

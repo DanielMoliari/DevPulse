@@ -59,6 +59,7 @@ model Repository {
   isTracked    Boolean    @default(true)
   isPrivate    Boolean    @default(false)
   syncState    SyncState  @default(IDLE)
+  pushedAt     DateTime?  // GitHub's pushed_at — last commit push timestamp
   lastSyncedAt DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
