@@ -118,11 +118,13 @@ export class GitHubLookupService {
   async lookupRepo(owner: string, repo: string): Promise<SearchRepoResultType | null> {
     const path = `/repos/${owner}/${repo}`
 
-    const [rawRepo, rawLangs, rawContribs, rawActivity] = await Promise.all([
+    const [rawRepo, rawLangs, rawContribs, rawActivity, rawPunchCard, rawTree] = await Promise.all([
       this.ghFetch<Record<string, unknown>>(path),
       this.ghFetch<Record<string, number>>(`${path}/languages`),
       this.ghFetch<Record<string, unknown>[]>(`${path}/contributors?per_page=10`),
       this.ghFetch<{ week: number; total: number; days: number[] }[]>(`${path}/stats/commit_activity`),
+      this.ghFetch<number[][]>(`${path}/stats/punch_card`),
+      this.ghFetch<{ tree: { path: string; type: string }[]; truncated: boolean }>(`${path}/git/trees/HEAD?recursive=1`),
     ])
 
     if (!rawRepo || rawRepo['message'] === 'Not Found') return null
@@ -136,18 +138,39 @@ export class GitHubLookupService {
         percent: totalBytes > 0 ? Math.round((bytes / totalBytes) * 1000) / 10 : 0,
       }))
 
-    const contributors = (rawContribs ?? []).slice(0, 8).map((c) => ({
+    const contributors = (rawContribs ?? []).slice(0, 10).map((c) => ({
       login: String(c['login'] ?? ''),
       ...(c['avatar_url'] ? { avatarUrl: String(c['avatar_url']) } : {}),
       contributions: Number(c['contributions'] ?? 0),
     }))
 
-    // GitHub returns 202 while computing stats — rawActivity may be null or non-array
     const activityArr = Array.isArray(rawActivity) ? rawActivity : []
     const weeklyCommits = activityArr.slice(-52).map((w) => ({
       week: w.week,
       total: w.total,
     }))
+
+    // punch_card: [[day, hour, count], ...] — GitHub returns 168 slots (7d × 24h)
+    const punchCard = Array.isArray(rawPunchCard)
+      ? rawPunchCard.map((slot) => ({
+          day: Number(slot[0] ?? 0),
+          hour: Number(slot[1] ?? 0),
+          count: Number(slot[2] ?? 0),
+        }))
+      : []
+
+    // File extension breakdown from the recursive tree
+    const treeFiles = (rawTree?.tree ?? []).filter((f) => f.type === 'blob')
+    const extMap = new Map<string, number>()
+    for (const f of treeFiles) {
+      const dot = f.path.lastIndexOf('.')
+      const ext = dot >= 0 ? f.path.slice(dot + 1).toLowerCase() : ''
+      if (ext && ext.length <= 10) extMap.set(ext, (extMap.get(ext) ?? 0) + 1)
+    }
+    const fileExtensions = [...extMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([ext, count]) => ({ ext, count }))
 
     return {
       fullName: String(rawRepo['full_name'] ?? `${owner}/${repo}`),
@@ -157,6 +180,7 @@ export class GitHubLookupService {
       forks: Number(rawRepo['forks_count'] ?? 0),
       openIssues: Number(rawRepo['open_issues_count'] ?? 0),
       sizeKb: Number(rawRepo['size'] ?? 0),
+      totalFiles: treeFiles.length,
       createdAt: String(rawRepo['created_at'] ?? ''),
       pushedAt: String(rawRepo['pushed_at'] ?? ''),
       ...(rawRepo['homepage'] ? { homepage: String(rawRepo['homepage']) } : {}),
@@ -164,6 +188,8 @@ export class GitHubLookupService {
       languages,
       contributors,
       weeklyCommits,
+      punchCard,
+      fileExtensions,
     }
   }
 }

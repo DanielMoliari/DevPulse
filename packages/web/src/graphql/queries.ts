@@ -151,6 +151,7 @@ export const SEARCH_REPO_QUERY = gql`
       forks
       openIssues
       sizeKb
+      totalFiles
       createdAt
       pushedAt
       homepage
@@ -158,6 +159,8 @@ export const SEARCH_REPO_QUERY = gql`
       languages { name bytes percent }
       contributors { login avatarUrl contributions }
       weeklyCommits { week total }
+      punchCard { day hour count }
+      fileExtensions { ext count }
     }
   }
 `

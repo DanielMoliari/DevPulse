@@ -289,10 +289,21 @@ type RepoDetailType {
   watchers: Int!
 }
 
+type RepoFileExtType {
+  count: Int!
+  ext: String!
+}
+
 type RepoLanguageType {
   bytes: Int!
   name: String!
   percent: Float!
+}
+
+type RepoPunchSlotType {
+  count: Int!
+  day: Int!
+  hour: Int!
 }
 
 type RepositoryType {
@@ -337,16 +348,19 @@ type SearchRepoResultType {
   contributors: [RepoContributorType!]!
   createdAt: String!
   description: String
+  fileExtensions: [RepoFileExtType!]!
   forks: Int!
   fullName: String!
   homepage: String
   languages: [RepoLanguageType!]!
   openIssues: Int!
   primaryLanguage: String
+  punchCard: [RepoPunchSlotType!]!
   pushedAt: String!
   sizeKb: Int!
   stars: Int!
   topics: [String!]!
+  totalFiles: Int!
   weeklyCommits: [RepoCommitWeekType!]!
 }
 

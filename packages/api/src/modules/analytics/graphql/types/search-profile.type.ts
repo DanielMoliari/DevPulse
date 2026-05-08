@@ -34,6 +34,27 @@ export class RepoCommitWeekType {
 }
 
 @ObjectType()
+export class RepoPunchSlotType {
+  @Field(() => Int)
+  day!: number  // 0=Sun … 6=Sat
+
+  @Field(() => Int)
+  hour!: number  // 0-23
+
+  @Field(() => Int)
+  count!: number
+}
+
+@ObjectType()
+export class RepoFileExtType {
+  @Field()
+  ext!: string
+
+  @Field(() => Int)
+  count!: number
+}
+
+@ObjectType()
 export class SearchRepoResultType {
   @Field()
   fullName!: string
@@ -56,6 +77,9 @@ export class SearchRepoResultType {
   @Field(() => Int)
   sizeKb!: number
 
+  @Field(() => Int)
+  totalFiles!: number
+
   @Field()
   createdAt!: string
 
@@ -76,6 +100,12 @@ export class SearchRepoResultType {
 
   @Field(() => [RepoCommitWeekType])
   weeklyCommits!: RepoCommitWeekType[]
+
+  @Field(() => [RepoPunchSlotType])
+  punchCard!: RepoPunchSlotType[]
+
+  @Field(() => [RepoFileExtType])
+  fileExtensions!: RepoFileExtType[]
 }
 
 @ObjectType()
