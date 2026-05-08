@@ -1,6 +1,6 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useMutation } from '@apollo/client/react'
 import {
@@ -114,15 +114,33 @@ function shortPath(full: string): string {
   return `…/${parts.slice(-2).join('/')}`
 }
 
+type ChartRange = '30d' | '90d' | 'all'
+const CHART_RANGES: { label: string; value: ChartRange }[] = [
+  { label: '30d', value: '30d' },
+  { label: '90d', value: '90d' },
+  { label: 'All', value: 'all' },
+]
+
 export default function RepoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { data, loading, refetch } = useQuery<RepoDetail>(REPOSITORY_DETAIL_QUERY, { variables: { id } })
   const [syncRepo, { loading: syncing }] = useMutation(SYNC_REPOSITORY)
+  const [chartRange, setChartRange] = useState<ChartRange>('all')
 
   if (loading || !data) return <RepoDetailSkeleton />
   const d = data.repositoryDetail
   const r = d.repository
   const [owner, name] = r.fullName.split('/')
+
+  const isPrivate = d.stars === 0 && d.forks === 0 && d.watchers === 0
+
+  const cutoffDays = chartRange === '30d' ? 30 : chartRange === '90d' ? 90 : null
+  const filteredMetrics = cutoffDays
+    ? d.recentMetrics.filter((m) => {
+        const age = (Date.now() - new Date(m.date).getTime()) / (1000 * 60 * 60 * 24)
+        return age <= cutoffDays
+      })
+    : d.recentMetrics
 
   async function handleSync() {
     await syncRepo({ variables: { id } })
@@ -150,7 +168,11 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
                 </Badge>
                 {r.syncState === 'SYNCING' && <Badge variant="accent" className="text-[10px]">SYNCING</Badge>}
                 {r.syncState === 'ERROR'   && <Badge variant="danger" className="text-[10px]">SYNC FAILED</Badge>}
-                {d.health && <HealthGradeBadge grade={d.health.grade} />}
+                {d.health && (
+                  <span title={`Code health: ${d.health.grade} (${d.health.score}/100)`}>
+                    <HealthGradeBadge grade={d.health.grade} />
+                  </span>
+                )}
               </div>
               <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-slate-100">{name}</h1>
               {d.description && (
@@ -190,13 +212,15 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </Card>
 
-      {/* ─── Quick stats ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile icon={Star}      label="Stars"        value={d.stars}       color="amber" />
-        <StatTile icon={GitFork}   label="Forks"        value={d.forks}       color="violet" />
-        <StatTile icon={Eye}       label="Watchers"     value={d.watchers}    color="teal" />
-        <StatTile icon={AlertCircle} label="Open issues" value={d.openIssues}  color={d.openIssues > 0 ? 'orange' : 'slate'} />
-      </div>
+      {/* ─── Quick stats — only for public repos ────────────────────────── */}
+      {!isPrivate && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatTile icon={Star}        label="Stars"       value={d.stars}      color="amber" />
+          <StatTile icon={GitFork}     label="Forks"       value={d.forks}      color="violet" />
+          <StatTile icon={Eye}         label="Watchers"    value={d.watchers}   color="teal" />
+          <StatTile icon={AlertCircle} label="Open issues" value={d.openIssues} color={d.openIssues > 0 ? 'orange' : 'slate'} />
+        </div>
+      )}
 
       {/* ─── Language breakdown ─────────────────────────────────────────── */}
       <Card>
@@ -213,36 +237,51 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
         </CardContent>
       </Card>
 
-      {/* ─── Activity chart ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Commits — full history</CardTitle>
-            <p className="mt-1 text-xs text-slate-500">
-              Since {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ActivityChart
-              data={d.recentMetrics.map((m) => ({ date: m.date, value: m.commits }))}
-              type="area"
-              height={220}
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Net lines of code</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityChart
-              data={d.recentMetrics.map((m) => ({ date: m.date, value: m.netLines }))}
-              type="bar"
-              color="#22c55e"
-              height={220}
-            />
-          </CardContent>
-        </Card>
+      {/* ─── Activity charts ────────────────────────────────────────────── */}
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="font-display text-base font-semibold text-slate-100">Activity</h2>
+          <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
+            {CHART_RANGES.map(({ label, value }) => (
+              <button
+                key={value}
+                onClick={() => setChartRange(value)}
+                className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  chartRange === value ? 'bg-surface-2 text-slate-100' : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Commits</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityChart
+                data={filteredMetrics.map((m) => ({ date: m.date, value: m.commits }))}
+                type="area"
+                height={220}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Net lines of code</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityChart
+                data={filteredMetrics.map((m) => ({ date: m.date, value: m.netLines }))}
+                type="bar"
+                color="#22c55e"
+                height={220}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* ─── Recent PRs ─────────────────────────────────────────────────── */}

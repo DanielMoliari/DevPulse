@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { RefreshCw } from 'lucide-react'
+import { ArrowUpRight, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -49,9 +49,10 @@ export function RepoCard({ repo, maxCommits = 0, onToggleTrack, onSync, syncing 
           <span className="text-xs text-slate-500">{owner}/</span>
           <Link
             href={`/repos/${repo.id}`}
-            className="block truncate text-sm font-semibold text-slate-100 hover:text-accent transition-colors cursor-pointer"
+            className="flex items-center gap-1 truncate text-sm font-semibold text-slate-100 hover:text-accent transition-colors cursor-pointer"
           >
             {name}
+            <ArrowUpRight className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-accent" />
           </Link>
         </div>
 

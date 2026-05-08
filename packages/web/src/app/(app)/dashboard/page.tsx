@@ -177,6 +177,12 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* ── Section divider: Contribution activity ── */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 whitespace-nowrap">Contribution activity</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
       {/* Heatmap + Radial day-of-week */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px] items-start">
         <Card>
@@ -219,8 +225,20 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* ── Section divider: Personal insights ── */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 whitespace-nowrap">Personal insights</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
       {/* Personal insights — what the user can't get from GitHub natively */}
       <PersonalInsights insights={insightsData?.insights} loading={insightsLoading} />
+
+      {/* ── Section divider: Code metrics ── */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600 whitespace-nowrap">Code metrics</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
 
       {/* Recent activity chart */}
       <Card>

@@ -19,9 +19,17 @@ const PAGE_TITLES: Record<string, string> = {
   '/settings': 'Settings',
 }
 
-function getPageTitle(pathname: string): string {
+function getPageTitle(pathname: string, repositories?: Repository[]): string {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
-  if (pathname.startsWith('/repos/')) return 'Repository'
+  if (pathname.startsWith('/repos/')) {
+    const id = pathname.split('/repos/')[1]
+    const repo = repositories?.find((r) => r.id === id)
+    if (repo) {
+      const name = repo.fullName.split('/')[1] ?? repo.fullName
+      return name
+    }
+    return 'Repository'
+  }
   return 'reflog'
 }
 
@@ -50,9 +58,9 @@ interface NavHeaderProps {
 
 export function NavHeader({ onSyncOpen }: NavHeaderProps) {
   const pathname = usePathname()
-  const title = getPageTitle(pathname)
   const { data, loading } = useQuery<{ me: UserType }>(ME_QUERY)
   const { data: reposData } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY)
+  const title = getPageTitle(pathname, reposData?.repositories)
 
   const [syncedFlash, setSyncedFlash] = useState(false)
   const { toggleMobileMenu } = useUIStore()

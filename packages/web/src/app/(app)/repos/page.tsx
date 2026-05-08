@@ -104,10 +104,11 @@ export default function ReposPage() {
         </button>
         <button
           onClick={() => setActiveTab('stack')}
-          className={`cursor-pointer rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
+          className={`cursor-pointer flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
             activeTab === 'stack' ? 'bg-surface-2 text-slate-100' : 'text-slate-500 hover:text-slate-300'
           }`}
         >
+          <Network className="h-3 w-3 shrink-0" />
           Stack
         </button>
       </div>
