@@ -90,7 +90,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return {
       title,
       description,
-      openGraph: { title, description, type: 'profile' },
+      openGraph: {
+        title, description, type: 'profile',
+        url: `/u/${username}`,
+      },
       twitter: { card: 'summary_large_image', title, description },
     }
   }
