@@ -108,7 +108,7 @@ function HeroPreview() {
             { label: 'COMMITS THIS WEEK', value: '47', color: '#06b6d4' },
             { label: 'PRS MERGED', value: '12', color: '#a78bfa' },
             { label: 'REVIEWS DONE', value: '28', color: '#34d399' },
-            { label: 'STREAK', value: '14🔥', color: '#f59e0b' },
+            { label: 'STREAK', value: '14', color: '#f59e0b' },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-lg border border-white/6 bg-[#161616] px-3 py-2.5">
               <p className="mb-1 text-[8px] font-semibold uppercase tracking-widest" style={{ color: `${color}80` }}>{label}</p>
@@ -193,7 +193,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-14 pb-24 text-center">
+      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-28 pb-24 text-center">
         {/* Background glow */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute left-1/2 top-1/3 h-[500px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/6 blur-3xl" />
