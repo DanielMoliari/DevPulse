@@ -183,7 +183,7 @@ export default function SettingsPage() {
           {user?.plan === 'PRO' && <Badge variant="accent" className="ml-auto">Pro</Badge>}
         </div>
 
-        <div className="space-y-4 max-w-sm">
+        <div className="space-y-4">
           {/* Public profile URL */}
           {user?.username && (
             <div>
@@ -409,50 +409,39 @@ export default function SettingsPage() {
     danger: renderDanger,
   }
 
-  return (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex gap-0 min-h-[600px] rounded-xl border border-border overflow-hidden">
-        {/* Left nav */}
-        <nav className="w-48 shrink-0 border-r border-border bg-surface py-4">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label}>
-              <p
-                className={
-                  group.danger
-                    ? 'text-[9px] font-bold uppercase tracking-widest text-danger/50 px-4 pt-3 pb-1'
-                    : 'text-[9px] font-bold uppercase tracking-widest text-slate-700 px-4 pt-3 pb-1'
-                }
-              >
-                {group.label}
-              </p>
-              {group.items.map(({ id, label, Icon, danger }) => {
-                const isActive = activeSection === id
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setActiveSection(id)}
-                    className={[
-                      'flex items-center gap-2 px-4 py-1.5 text-xs font-medium cursor-pointer transition-colors w-full text-left',
-                      isActive
-                        ? 'bg-accent/7 border-r-2 border-accent text-slate-100'
-                        : danger
-                          ? 'text-danger/70 hover:text-danger hover:bg-surface-2/50'
-                          : 'text-slate-500 hover:text-slate-300 hover:bg-surface-2/50',
-                    ].join(' ')}
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          ))}
-        </nav>
+  const allItems = NAV_GROUPS.flatMap((g) => g.items)
 
-        {/* Right content */}
-        <div className="flex-1 p-6 overflow-y-auto">
-          {sectionContent[activeSection]()}
-        </div>
+  return (
+    <div className="max-w-2xl space-y-6">
+      {/* Horizontal tab nav */}
+      <nav className="flex items-center gap-1 border-b border-border pb-0">
+        {allItems.map(({ id, label, Icon, danger }) => {
+          const isActive = activeSection === id
+          return (
+            <button
+              key={id}
+              onClick={() => setActiveSection(id)}
+              className={[
+                'flex items-center gap-1.5 px-3 py-2 text-xs font-medium cursor-pointer transition-colors border-b-2 -mb-px',
+                isActive
+                  ? danger
+                    ? 'border-danger text-danger'
+                    : 'border-accent text-accent'
+                  : danger
+                    ? 'border-transparent text-danger/50 hover:text-danger'
+                    : 'border-transparent text-slate-500 hover:text-slate-300',
+              ].join(' ')}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              {label}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Section content */}
+      <div>
+        {sectionContent[activeSection]()}
       </div>
     </div>
   )

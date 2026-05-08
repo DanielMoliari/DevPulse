@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Bell, LogOut, PanelLeftOpen, RefreshCw, User } from 'lucide-react'
+import { AlertCircle, Bell, Check, LogOut, PanelLeftOpen, RefreshCw, User } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+
 import { useQuery } from '@apollo/client/react'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -30,28 +31,6 @@ function getPageTitle(pathname: string): string {
 
 const STALE_MS = 6 * 60 * 60 * 1000
 
-function useCountdown(targetMs: number | null) {
-  const [remaining, setRemaining] = useState<number | null>(null)
-  useEffect(() => {
-    if (targetMs === null) { setRemaining(null); return }
-    const tick = () => setRemaining(Math.max(0, targetMs - Date.now()))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [targetMs])
-  return remaining
-}
-
-function formatCountdown(ms: number): string {
-  const totalSec = Math.ceil(ms / 1000)
-  const h = Math.floor(totalSec / 3600)
-  const m = Math.floor((totalSec % 3600) / 60)
-  const s = totalSec % 60
-  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`
-  if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`
-  return `${s}s`
-}
-
 export function NavHeader() {
   const pathname = usePathname()
   const title = getPageTitle(pathname)
@@ -59,27 +38,47 @@ export function NavHeader() {
   const { data: reposData } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY)
 
   const [panelOpen, setPanelOpen] = useState(false)
+  const [syncedFlash, setSyncedFlash] = useState(false)
   const { toggleMobileMenu } = useUIStore()
 
   const tracked = (reposData?.repositories ?? []).filter((r) => r.isTracked)
   const isSyncing = tracked.some((r) => r.syncState === 'SYNCING')
+  const hasError = !isSyncing && tracked.some((r) => r.syncState === 'ERROR')
 
-  // Derive "last synced" from the most recently synced tracked repo
-  const lastSyncedAt = tracked.reduce<number | null>((best, r) => {
-    if (!r.lastSyncedAt) return best
-    const t = new Date(r.lastSyncedAt).getTime()
-    return best === null || t > best ? t : best
-  }, null)
+  // Flash "Synced" for 2.5s when syncing transitions to done
+  useEffect(() => {
+    if (!isSyncing) return
+    return () => {
+      setSyncedFlash(true)
+      const t = setTimeout(() => setSyncedFlash(false), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [isSyncing])
 
-  const nextSyncAt = lastSyncedAt !== null ? lastSyncedAt + STALE_MS : null
-  const countdown = useCountdown(nextSyncAt)
-  const isStale = !isSyncing && (lastSyncedAt === null || Date.now() - lastSyncedAt > STALE_MS)
+  const isStale = !isSyncing && !syncedFlash && (
+    tracked.length === 0 ||
+    tracked.every((r) => !r.lastSyncedAt) ||
+    tracked.every((r) => r.lastSyncedAt && Date.now() - new Date(r.lastSyncedAt).getTime() > STALE_MS)
+  )
 
-  const iconColor = isSyncing
-    ? 'text-accent'
+  type SyncState = 'syncing' | 'synced' | 'error' | 'idle' | 'stale'
+  const syncState: SyncState = isSyncing
+    ? 'syncing'
+    : syncedFlash
+    ? 'synced'
+    : hasError
+    ? 'error'
     : isStale
-    ? 'text-warning'
-    : 'text-slate-500'
+    ? 'stale'
+    : 'idle'
+
+  const syncConfig = {
+    syncing: { icon: <RefreshCw className="h-3.5 w-3.5 animate-spin text-accent" />, label: 'Syncing…', labelCls: 'text-accent' },
+    synced:  { icon: <Check className="h-3.5 w-3.5 text-emerald-400" />,             label: 'Synced',   labelCls: 'text-emerald-400' },
+    error:   { icon: <AlertCircle className="h-3.5 w-3.5 text-danger" />,            label: 'Retry',    labelCls: 'text-danger' },
+    stale:   { icon: <RefreshCw className="h-3.5 w-3.5 text-warning" />,             label: 'Sync',     labelCls: 'text-warning' },
+    idle:    { icon: <RefreshCw className="h-3.5 w-3.5 text-slate-500" />,           label: 'Sync',     labelCls: 'text-slate-500' },
+  } as const
 
   function handleLogout() {
     clearToken()
@@ -109,28 +108,36 @@ export function NavHeader() {
           {/* Sync button */}
           <button
             onClick={() => setPanelOpen(true)}
-            title={isSyncing ? 'Syncing…' : isStale ? 'Data is stale — click to sync' : 'Sync repositories'}
-            className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-surface-2"
+            className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-surface-2"
           >
-            <RefreshCw
-              className={[
-                'h-3.5 w-3.5 transition-colors',
-                isSyncing ? 'animate-spin' : '',
-                iconColor,
-              ].join(' ')}
-            />
-            {countdown !== null && countdown > 0 && !isSyncing && (
-              <span className="tabular text-slate-600">{formatCountdown(countdown)}</span>
-            )}
-            {isSyncing && (
-              <span className="text-accent tabular">syncing</span>
-            )}
+            {syncConfig[syncState].icon}
+            <span className={syncConfig[syncState].labelCls}>
+              {syncConfig[syncState].label}
+            </span>
           </button>
 
-          <Button variant="ghost" size="icon" className="relative text-slate-500">
-            <Bell className="h-4 w-4" />
-            <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-orange-500" />
-          </Button>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <Button variant="ghost" size="icon" className="relative text-slate-500">
+                <Bell className="h-4 w-4" />
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={6}
+                className="z-50 w-72 rounded-lg border border-border-2 bg-surface-2 shadow-lg animate-in fade-in-0 zoom-in-95"
+              >
+                <div className="border-b border-border px-4 py-2.5">
+                  <span className="text-xs font-semibold text-slate-300">Notifications</span>
+                </div>
+                <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                  <Bell className="h-6 w-6 text-slate-700" />
+                  <p className="text-xs text-slate-500">No notifications yet</p>
+                </div>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
 
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
