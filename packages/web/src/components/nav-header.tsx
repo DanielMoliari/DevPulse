@@ -11,6 +11,7 @@ import { ME_QUERY, REPOSITORIES_QUERY } from '@/graphql/queries'
 import type { Repository, User as UserType } from '@/graphql/types'
 import { clearToken } from '@/lib/auth'
 import { useUIStore } from '@/store/ui-store'
+import { GlobalSearch } from '@/components/global-search'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -125,7 +126,7 @@ export function NavHeader({ onSyncOpen }: NavHeaderProps) {
     : user?.username?.slice(0, 2).toUpperCase() ?? '?'
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 md:px-6">
+    <header className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-border px-4 md:px-6">
 
       {/* Left — title + stale freshness indicator */}
       <div className="flex items-center gap-3">
@@ -147,8 +148,13 @@ export function NavHeader({ onSyncOpen }: NavHeaderProps) {
         )}
       </div>
 
+      {/* Center — global search */}
+      <div className="flex justify-center">
+        <GlobalSearch />
+      </div>
+
       {/* Right — sync + separator + bell + avatar */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center justify-end gap-2">
 
         {/* Sync button with colored border per state */}
         <button

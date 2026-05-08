@@ -91,11 +91,12 @@ export function GlobalSearch() {
   }, [openModal, closeModal])
 
   // Search when debounced user query is ready
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (debouncedParsed.mode === 'user' && debouncedParsed.username.length >= 2) {
-      void search({ variables: { username: debouncedParsed.username } })
+      void search({ variables: { query: debouncedParsed.username } })
     }
-  }, [debounced, debouncedParsed, search])
+  }, [debounced]) // intentionally omit `search` — useLazyQuery returns a new fn ref each render
 
   const result = data?.searchProfile ?? null
 

@@ -238,6 +238,7 @@ type Query {
 
   """Detailed insights for a single repository"""
   repositoryDetail(id: ID!): RepoDetailType!
+  searchProfile(query: String!): SearchProfileResultType
 
   """Get current streak stats"""
   streak: StreakType
@@ -286,6 +287,32 @@ type RepositoryType {
   linesAdded: Int
   pushedAt: String
   syncState: SyncState!
+}
+
+type SearchProfileLanguageType {
+  name: String!
+  percent: Float!
+}
+
+type SearchProfileRepoType {
+  fullName: String!
+  language: String
+  stargazersCount: Int!
+}
+
+type SearchProfileResultType {
+  avatarUrl: String
+  bio: String
+  currentStreak: Int
+  displayName: String!
+  followers: Int
+  location: String
+  publicRepos: Int
+  source: String!
+  topLanguages: [SearchProfileLanguageType!]
+  topRepos: [SearchProfileRepoType!]
+  totalCommits: Int
+  username: String!
 }
 
 type StreakType {

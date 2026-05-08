@@ -13,6 +13,7 @@ import { StreakService } from './application/services/streak.service'
 import { SyncRepositoryProcessor } from './application/jobs/sync-repository.processor'
 import { AnalyticsResolver } from './graphql/resolvers/analytics.resolver'
 import { PublicProfileResolver } from './graphql/resolvers/public-profile.resolver'
+import { GitHubLookupService } from './application/services/github-lookup.service'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PublicProfileResolver } from './graphql/resolvers/public-profile.resolv
     AnalyticsService,
     StreakService,
     PublicProfileService,
+    GitHubLookupService,
     SyncRepositoryProcessor,
     AnalyticsResolver,
     PublicProfileResolver,

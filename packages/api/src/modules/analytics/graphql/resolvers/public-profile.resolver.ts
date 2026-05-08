@@ -10,13 +10,64 @@ import {
 import { PublicProfileType } from '../../../identity/graphql/types/public-profile.type'
 import { UserType } from '../../../identity/graphql/types/user.type'
 import { PublicProfileService } from '../../application/services/public-profile.service'
+import { GitHubLookupService } from '../../application/services/github-lookup.service'
+import { SearchProfileResultType } from '../types/search-profile.type'
 
 @Resolver(() => PublicProfileType)
 export class PublicProfileResolver {
   constructor(
     private readonly publicProfileService: PublicProfileService,
     private readonly identityService: IdentityService,
+    private readonly gitHubLookupService: GitHubLookupService,
   ) {}
+
+  // ── Global search — no auth required ────────────────────────────────────
+  @Query(() => SearchProfileResultType, { nullable: true, name: 'searchProfile' })
+  async searchProfile(@Args('query') query: string): Promise<SearchProfileResultType | null> {
+    const username = query.trim()
+    if (!username) return null
+
+    // 1. Check DevPulse first — richer data, streak included
+    const devpulse = await this.publicProfileService.getPublicProfile(username)
+    if (devpulse) {
+      return {
+        source: 'devpulse',
+        username: devpulse.username,
+        displayName: devpulse.displayName,
+        ...(devpulse.avatarUrl ? { avatarUrl: devpulse.avatarUrl } : {}),
+        totalCommits: devpulse.totalCommits,
+        ...(devpulse.currentStreak !== null ? { currentStreak: devpulse.currentStreak } : {}),
+        topLanguages: devpulse.topLanguages,
+        ...(devpulse.trackedRepos ? {
+          topRepos: devpulse.trackedRepos.map((r) => ({
+            fullName: r.fullName,
+            ...(r.language ? { language: r.language } : {}),
+            stargazersCount: 0,
+          })),
+        } : {}),
+      }
+    }
+
+    // 2. Fall back to anonymous GitHub API
+    const gh = await this.gitHubLookupService.lookup(username)
+    if (!gh) return null
+    return {
+      source: 'github',
+      username: gh.user.login,
+      displayName: gh.user.name ?? gh.user.login,
+      ...(gh.user.avatarUrl ? { avatarUrl: gh.user.avatarUrl } : {}),
+      ...(gh.user.bio ? { bio: gh.user.bio } : {}),
+      ...(gh.user.location ? { location: gh.user.location } : {}),
+      followers: gh.user.followers,
+      publicRepos: gh.user.publicRepos,
+      topLanguages: gh.topLanguages,
+      topRepos: gh.topRepos.map((r) => ({
+        fullName: r.fullName,
+        ...(r.language ? { language: r.language } : {}),
+        stargazersCount: r.stargazersCount,
+      })),
+    }
+  }
 
   // ── Public read query ────────────────────────────────────────────────────
   // Intentionally NO @UseGuards: the /u/{username} page must work for anonymous visitors.
