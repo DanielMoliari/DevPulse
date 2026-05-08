@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation } from '@apollo/client/react'
-import { Search, Sparkles, Network, Layers, ExternalLink } from 'lucide-react'
+import { Search, Sparkles, Network, Layers, ExternalLink, ChevronDown } from 'lucide-react'
 import { RepoCard, RepoCardSkeleton } from '@/components/repo-card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,8 @@ export default function ReposPage() {
   const { data: meData } = useQuery<{ me: User }>(ME_QUERY)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'tracked' | 'untracked'>('all')
+  const [sort, setSort] = useState<'activity' | 'commits' | 'alpha' | 'added'>('activity')
+  const [langFilter, setLangFilter] = useState<string>('all')
 
   const { data, loading } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY)
   const [trackRepo] = useMutation(TRACK_REPOSITORY, {
@@ -67,25 +69,45 @@ export default function ReposPage() {
 
   const repos = data?.repositories ?? []
 
-  const sorted = [...repos].sort((a, b) => {
-    const aDate = a.pushedAt ?? a.lastSyncedAt ?? ''
-    const bDate = b.pushedAt ?? b.lastSyncedAt ?? ''
-    return bDate.localeCompare(aDate)
-  })
-
-  const maxCommits = sorted.reduce((max, r) => Math.max(max, r.commitCount ?? 0), 0)
-
-  const tracked = sorted.filter((r) => r.isTracked).length
-
+  const tracked = repos.filter((r) => r.isTracked).length
   const planLimit = meData?.me?.plan ? PLAN_LIMITS[meData.me.plan]?.maxTrackedRepos ?? null : null
   const overLimit = planLimit !== null && tracked >= planLimit
 
-  const filtered = sorted.filter((r) => {
+  // Collect unique languages from repos that have a primary language
+  const availableLangs = useMemo(() => {
+    const langs = new Set<string>()
+    for (const r of repos) {
+      if (r.language) langs.add(r.language)
+    }
+    return Array.from(langs).sort()
+  }, [repos])
+
+  const sorted = useMemo(() => {
+    const arr = [...repos]
+    if (sort === 'activity') {
+      arr.sort((a, b) => {
+        const aDate = a.pushedAt ?? a.lastSyncedAt ?? ''
+        const bDate = b.pushedAt ?? b.lastSyncedAt ?? ''
+        return bDate.localeCompare(aDate)
+      })
+    } else if (sort === 'commits') {
+      arr.sort((a, b) => (b.commitCount ?? 0) - (a.commitCount ?? 0))
+    } else if (sort === 'alpha') {
+      arr.sort((a, b) => a.fullName.localeCompare(b.fullName))
+    } else if (sort === 'added') {
+      arr.sort((a, b) => (b.lastSyncedAt ?? '').localeCompare(a.lastSyncedAt ?? ''))
+    }
+    return arr
+  }, [repos, sort])
+
+  const maxCommits = sorted.reduce((max, r) => Math.max(max, r.commitCount ?? 0), 0)
+
+  const filtered = useMemo(() => sorted.filter((r) => {
     const matchSearch = r.fullName.toLowerCase().includes(search.toLowerCase())
-    const matchFilter =
-      filter === 'all' || (filter === 'tracked' ? r.isTracked : !r.isTracked)
-    return matchSearch && matchFilter
-  })
+    const matchFilter = filter === 'all' || (filter === 'tracked' ? r.isTracked : !r.isTracked)
+    const matchLang = langFilter === 'all' || r.language === langFilter
+    return matchSearch && matchFilter && matchLang
+  }), [sorted, search, filter, langFilter])
 
   // Only show skeletons on first load — not on background refetches from SyncPanel polls
   const initialLoad = loading && !data
@@ -158,7 +180,8 @@ export default function ReposPage() {
           )}
 
           {/* Filters */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Search */}
             <div className="relative flex-1 min-w-52">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
               <Input
@@ -168,6 +191,8 @@ export default function ReposPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+
+            {/* Tracking filter */}
             <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
               {(['all', 'tracked', 'untracked'] as const).map((f) => (
                 <button
@@ -181,6 +206,38 @@ export default function ReposPage() {
                 </button>
               ))}
             </div>
+
+            {/* Language filter */}
+            {availableLangs.length > 0 && (
+              <div className="relative">
+                <select
+                  value={langFilter}
+                  onChange={(e) => setLangFilter(e.target.value)}
+                  className="cursor-pointer appearance-none rounded-lg border border-border bg-surface px-3 py-1.5 pr-7 text-xs font-medium text-slate-400 transition-colors hover:border-border-2 hover:text-slate-200 focus:outline-none"
+                >
+                  <option value="all">All languages</option>
+                  {availableLangs.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-600" />
+              </div>
+            )}
+
+            {/* Sort */}
+            <div className="relative">
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as typeof sort)}
+                className="cursor-pointer appearance-none rounded-lg border border-border bg-surface px-3 py-1.5 pr-7 text-xs font-medium text-slate-400 transition-colors hover:border-border-2 hover:text-slate-200 focus:outline-none"
+              >
+                <option value="activity">Recent activity</option>
+                <option value="commits">Most commits</option>
+                <option value="alpha">Alphabetical</option>
+                <option value="added">Recently added</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-600" />
+            </div>
           </div>
 
           {/* List */}
@@ -189,8 +246,24 @@ export default function ReposPage() {
               ? Array.from({ length: 5 }).map((_, i) => <RepoCardSkeleton key={i} />)
               : filtered.length === 0
                 ? (
-                  <div className="py-16 text-center text-sm text-slate-600">
-                    {search ? `No repositories matching "${search}"` : 'No repositories found'}
+                  <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.03] text-slate-600">
+                      <Search className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-400">No repositories found</p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        {search ? `No results for "${search}"` : 'Try adjusting your filters'}
+                      </p>
+                    </div>
+                    {(search || filter !== 'all' || langFilter !== 'all') && (
+                      <button
+                        onClick={() => { setSearch(''); setFilter('all'); setLangFilter('all') }}
+                        className="cursor-pointer text-xs text-cyan-500 hover:text-cyan-400 transition-colors"
+                      >
+                        Clear filters
+                      </button>
+                    )}
                   </div>
                 )
                 : filtered.map((repo) => (
