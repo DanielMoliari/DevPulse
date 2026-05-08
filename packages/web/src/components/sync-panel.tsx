@@ -61,7 +61,7 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
   const apollo = useApolloClient()
   const { data, refetch } = useQuery<{ repositories: Repository[] }>(
     REPOSITORIES_QUERY,
-    { fetchPolicy: 'network-only' },
+    { fetchPolicy: 'cache-and-network' },
   )
   const [syncRepository] = useMutation(SYNC_REPOSITORY)
 
@@ -133,7 +133,7 @@ export function SyncPanel({ open, onClose }: SyncPanelProps) {
           [...prev.map((r) => r.status === 'queued' ? { ...r, status: 'done' as const } : r)]
             .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
         )
-        await apollo.resetStore()
+        await apollo.refetchQueries({ include: 'active' })
       }
     }, 1500)
   }
