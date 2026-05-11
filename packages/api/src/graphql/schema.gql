@@ -118,6 +118,14 @@ input InviteMemberInput {
   teamId: String!
 }
 
+input JoinWaitlistInput {
+  company: String
+  email: String!
+  name: String
+  source: String
+  teamSize: String
+}
+
 type LanguageBreakdownType {
   bytes: Int!
   name: String!
@@ -157,6 +165,9 @@ type Mutation {
   """Re-import all GitHub repositories for the current user"""
   importFromGitHub: ImportResultType!
   inviteToTeam(input: InviteMemberInput!): TeamInviteType!
+
+  """Join the Team Plan waitlist"""
+  joinWaitlist(input: JoinWaitlistInput!): WaitlistEntryType!
   removeTeamMember(teamId: ID!, userId: ID!): Boolean!
 
   """Send a test weekly digest email to the authenticated user"""
@@ -186,9 +197,6 @@ type Mutation {
 
   """Apply a streak freeze for today — max 3 lifetime"""
   useStreakFreeze: StreakType!
-
-  """Join the Team Plan waitlist"""
-  joinWaitlist(input: JoinWaitlistInput!): WaitlistEntryType!
 }
 
 type PersonalRecordItemType {
@@ -607,19 +615,11 @@ type UserType {
   username: String
 }
 
-input JoinWaitlistInput {
-  email: String!
-  name: String
-  company: String
-  teamSize: String
-  source: String
-}
-
 type WaitlistEntryType {
-  id: ID!
-  email: String!
-  name: String
   company: String
-  teamSize: String
   createdAt: DateTime!
+  email: String!
+  id: ID!
+  name: String
+  teamSize: String
 }

@@ -189,9 +189,12 @@ export function PricingSection() {
                   ))}
                 </ul>
                 {isTeam ? (
-                  <div className="mt-auto">
-                    <TeamWaitlistForm source="pricing" compact />
-                  </div>
+                  <a
+                    href="#team"
+                    className="mt-auto block w-full cursor-pointer rounded-md border border-accent/30 bg-accent/10 py-2 text-center text-sm font-medium text-accent transition-colors hover:bg-accent/20"
+                  >
+                    Join waitlist →
+                  </a>
                 ) : (
                   <Button
                     asChild
