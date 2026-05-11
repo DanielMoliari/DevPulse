@@ -16,11 +16,17 @@ export function TeamWaitlistForm({ source = 'landing', compact = false }: TeamWa
   const [name, setName] = useState('')
   const [company, setCompany] = useState('')
   const [teamSize, setTeamSize] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [success, setSuccess] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('waitlist_joined') === 'true'
+  })
   const [error, setError] = useState<string | null>(null)
 
   const [joinWaitlist, { loading }] = useMutation<{ joinWaitlist: WaitlistEntry }>(JOIN_WAITLIST, {
-    onCompleted: () => setSuccess(true),
+    onCompleted: () => {
+      localStorage.setItem('waitlist_joined', 'true')
+      setSuccess(true)
+    },
     onError: (e) => setError(e.message.replace(/^.*?:\s*/, '')),
   })
 
