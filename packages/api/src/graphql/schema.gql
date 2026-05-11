@@ -186,6 +186,9 @@ type Mutation {
 
   """Apply a streak freeze for today — max 3 lifetime"""
   useStreakFreeze: StreakType!
+
+  """Join the Team Plan waitlist"""
+  joinWaitlist(input: JoinWaitlistInput!): WaitlistEntryType!
 }
 
 type PersonalRecordItemType {
@@ -602,4 +605,21 @@ type UserType {
 
   """GitHub-style display handle — falls back to name or githubId"""
   username: String
+}
+
+input JoinWaitlistInput {
+  email: String!
+  name: String
+  company: String
+  teamSize: String
+  source: String
+}
+
+type WaitlistEntryType {
+  id: ID!
+  email: String!
+  name: String
+  company: String
+  teamSize: String
+  createdAt: DateTime!
 }
