@@ -83,7 +83,7 @@ function NavLinks({ onLinkClick }: { onLinkClick?: () => void }) {
               <span className="flex flex-1 items-center gap-1.5 min-w-0">
                 <span className="truncate">Team</span>
                 {!isTeamPlan && (
-                  <span className="shrink-0 rounded-sm bg-violet-500/15 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-violet-400">
+                  <span className="shrink-0 rounded-sm bg-surface-2 border border-border px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-500">
                     Soon
                   </span>
                 )}

@@ -6,6 +6,7 @@ import { useMutation } from '@apollo/client/react'
 import { Check, Sparkles, X } from 'lucide-react'
 import { CREATE_CHECKOUT_SESSION } from '@/graphql/mutations'
 import { Button } from '@/components/ui/button'
+import { TeamWaitlistForm } from '@/components/team-waitlist-form'
 
 const PLANS = [
   {
@@ -212,12 +213,9 @@ export function UpgradeModal({ open, onOpenChange, currentPlan = 'FREE', headlin
                           {plan.cta}
                         </button>
                       ) : isTeam ? (
-                        <a
-                          href="mailto:team@devpulse.dev?subject=Team Plan Waitlist"
-                          className="block w-full cursor-pointer rounded-md bg-surface-2 py-2 text-center text-xs font-medium text-slate-400 transition-colors hover:bg-surface hover:text-slate-200"
-                        >
-                          {plan.cta} →
-                        </a>
+                        <div className="mt-1">
+                          <TeamWaitlistForm source="modal" compact />
+                        </div>
                       ) : plan.id === 'FREE' ? null : (
                         <Button
                           variant={plan.highlight ? 'default' : 'outline'}

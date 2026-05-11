@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Check, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TeamWaitlistForm } from '@/components/team-waitlist-form'
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:17642'
 
@@ -188,12 +189,9 @@ export function PricingSection() {
                   ))}
                 </ul>
                 {isTeam ? (
-                  <a
-                    href="mailto:team@devpulse.dev?subject=Team Plan Waitlist"
-                    className="mt-auto block w-full cursor-pointer rounded-md border border-border bg-surface-2 py-2 text-center text-sm font-medium text-slate-400 transition-colors hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-violet-300"
-                  >
-                    {plan.cta} →
-                  </a>
+                  <div className="mt-auto">
+                    <TeamWaitlistForm source="pricing" compact />
+                  </div>
                 ) : (
                   <Button
                     asChild

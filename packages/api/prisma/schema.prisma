@@ -194,6 +194,18 @@ model TeamInvite {
   @@map("team_invites")
 }
 
+// ─── Waitlist ─────────────────────────────────────────────────────────────────
+
+model WaitlistEntry {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  company   String?
+  teamSize  String?
+  source    String?  // "landing", "team-page", "modal", "pricing"
+  createdAt DateTime @default(now())
+}
+
 // ─── Infrastructure ───────────────────────────────────────────────────────────
 
 model Webhook {

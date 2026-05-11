@@ -189,3 +189,12 @@ export interface Team {
   updatedAt: string
   members?: TeamMember[]
 }
+
+export interface WaitlistEntry {
+  id: string
+  email: string
+  name?: string
+  company?: string
+  teamSize?: string
+  createdAt: string
+}

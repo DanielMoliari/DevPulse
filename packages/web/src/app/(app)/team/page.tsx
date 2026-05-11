@@ -2,13 +2,20 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation } from '@apollo/client/react'
-import { Users, Plus, ArrowRight, Sparkles } from 'lucide-react'
+import { Users, Plus, ArrowRight, Sparkles, BarChart2, AlertTriangle, FileText } from 'lucide-react'
 import { MY_TEAMS_QUERY, ME_QUERY } from '@/graphql/queries'
 import { CREATE_TEAM } from '@/graphql/mutations'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import type { Team, User } from '@/graphql/types'
+import { TeamWaitlistForm } from '@/components/team-waitlist-form'
+
+const TEAM_PREVIEW_FEATURES = [
+  { Icon: BarChart2, title: 'Team Dashboard', desc: 'Commits, PRs e reviews de cada dev em um só lugar' },
+  { Icon: AlertTriangle, title: 'Sinais de saúde', desc: 'Burnout detector, silos técnicos, review bottlenecks' },
+  { Icon: FileText, title: 'Relatórios', desc: 'Weekly Engineering Report exportável para o board' },
+]
 
 export default function TeamPage() {
   const [showCreate, setShowCreate] = useState(false)
@@ -44,14 +51,14 @@ export default function TeamPage() {
 
       {/* Coming Soon banner for non-TEAM plans */}
       {!isTeamPlan && (
-        <div className="relative overflow-hidden rounded-2xl border border-violet-500/25 bg-gradient-to-br from-violet-500/8 via-surface to-surface">
-          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-cyan-500/8 blur-3xl" />
+        <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/8 via-surface to-surface">
+          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
+          <div className="pointer-events-none absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-accent/5 blur-3xl" />
           <div className="relative px-8 py-10 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-500/30 bg-violet-500/10">
-              <Users className="h-7 w-7 text-violet-400" />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/30 bg-accent/10">
+              <Users className="h-7 w-7 text-accent" />
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-4">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-accent mb-4">
               <Sparkles className="h-3 w-3" /> Em breve
             </div>
             <h2 className="text-2xl font-bold text-slate-100 mb-3">Team Plan — Coming Soon</h2>
@@ -60,25 +67,16 @@ export default function TeamPage() {
               Construído para engineering managers que querem dados reais, não métricas de vigilância.
             </p>
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">
-              {[
-                { icon: '📊', title: 'Team Dashboard', desc: 'Commits, PRs e reviews de cada dev em um só lugar' },
-                { icon: '🚨', title: 'Sinais de saúde', desc: 'Burnout detector, silos técnicos, review bottlenecks' },
-                { icon: '📄', title: 'Relatórios', desc: 'Weekly Engineering Report exportável para o board' },
-              ].map((f) => (
+              {TEAM_PREVIEW_FEATURES.map((f) => (
                 <div key={f.title} className="rounded-xl border border-border bg-surface-2 p-4">
-                  <span className="text-2xl">{f.icon}</span>
+                  <f.Icon className="h-6 w-6 text-accent" />
                   <p className="mt-2 text-sm font-semibold text-slate-200">{f.title}</p>
                   <p className="mt-1 text-xs text-slate-500">{f.desc}</p>
                 </div>
               ))}
             </div>
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <a
-                href="mailto:team@devpulse.dev?subject=Team Plan Waitlist"
-                className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 hover:bg-violet-500 transition-colors cursor-pointer"
-              >
-                Entrar na waitlist <ArrowRight className="h-4 w-4" />
-              </a>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3">
+              <TeamWaitlistForm source="team-page" compact />
               <p className="text-xs text-slate-600">Nenhuma cobrança até o lançamento</p>
             </div>
           </div>

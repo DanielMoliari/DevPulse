@@ -158,3 +158,11 @@ export const ACCEPT_TEAM_INVITE = gql`
     }
   }
 `
+
+export const JOIN_WAITLIST = gql`
+  mutation JoinWaitlist($input: JoinWaitlistInput!) {
+    joinWaitlist(input: $input) {
+      id email createdAt
+    }
+  }
+`

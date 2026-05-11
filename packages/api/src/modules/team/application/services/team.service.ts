@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common'
 import { TEAM_REPOSITORY, type ITeamRepository } from '../../ports/team.repository.port'
 import type { TeamEntity, TeamMemberEntity, TeamRole } from '../../domain/team.entity'
+import { PrismaService } from '../../../../infrastructure/database/prisma.service'
 
 function slugify(name: string): string {
   return name
@@ -20,6 +21,7 @@ function slugify(name: string): string {
 export class TeamService {
   constructor(
     @Inject(TEAM_REPOSITORY) private readonly teamRepo: ITeamRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   async createTeam(ownerId: string, name: string): Promise<TeamEntity> {
@@ -105,6 +107,26 @@ export class TeamService {
     if (!team) throw new NotFoundException('Team not found')
     if (team.ownerId !== userId) throw new ForbiddenException('Only the owner can delete the team')
     await this.teamRepo.delete(teamId)
+  }
+
+  async joinWaitlist(
+    email: string,
+    name?: string,
+    company?: string,
+    teamSize?: string,
+    source?: string,
+  ) {
+    const existing = await this.prisma.waitlistEntry.findUnique({ where: { email } })
+    if (existing) return existing
+    return this.prisma.waitlistEntry.create({
+      data: {
+        email,
+        name: name ?? null,
+        company: company ?? null,
+        teamSize: teamSize ?? null,
+        source: source ?? 'landing',
+      },
+    })
   }
 
   private async assertMember(teamId: string, userId: string) {

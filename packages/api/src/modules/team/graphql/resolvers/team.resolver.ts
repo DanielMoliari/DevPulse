@@ -10,19 +10,22 @@ import {
   CreateTeamInput,
   InviteMemberInput,
   UpdateMemberRoleInput,
+  WaitlistEntryType,
+  JoinWaitlistInput,
 } from '../types/team.types'
 import type { TeamRole } from '../../domain/team.entity'
 
 @Resolver()
-@UseGuards(GqlAuthGuard)
 export class TeamResolver {
   constructor(private readonly teamService: TeamService) {}
 
+  @UseGuards(GqlAuthGuard)
   @Query(() => [TeamType])
   async myTeams(@CurrentUser() user: JwtPayload): Promise<TeamType[]> {
     return this.teamService.getMyTeams(user.sub) as unknown as TeamType[]
   }
 
+  @UseGuards(GqlAuthGuard)
   @Query(() => TeamType)
   async team(
     @CurrentUser() user: JwtPayload,
@@ -31,6 +34,7 @@ export class TeamResolver {
     return this.teamService.getTeam(id, user.sub) as unknown as TeamType
   }
 
+  @UseGuards(GqlAuthGuard)
   @Query(() => [TeamMemberType])
   async teamMembers(
     @CurrentUser() user: JwtPayload,
@@ -39,6 +43,7 @@ export class TeamResolver {
     return this.teamService.getMembers(teamId, user.sub) as unknown as TeamMemberType[]
   }
 
+  @UseGuards(GqlAuthGuard)
   @Query(() => [TeamInviteType])
   async teamInvites(
     @CurrentUser() user: JwtPayload,
@@ -47,6 +52,7 @@ export class TeamResolver {
     return this.teamService.getPendingInvites(teamId, user.sub) as unknown as TeamInviteType[]
   }
 
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => TeamType)
   async createTeam(
     @CurrentUser() user: JwtPayload,
@@ -55,6 +61,7 @@ export class TeamResolver {
     return this.teamService.createTeam(user.sub, input.name) as unknown as TeamType
   }
 
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => TeamInviteType)
   async inviteToTeam(
     @CurrentUser() user: JwtPayload,
@@ -68,6 +75,7 @@ export class TeamResolver {
     ) as unknown as TeamInviteType
   }
 
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => TeamType, { nullable: true })
   async acceptTeamInvite(
     @CurrentUser() user: JwtPayload,
@@ -76,6 +84,7 @@ export class TeamResolver {
     return this.teamService.acceptInvite(token, user.sub) as unknown as TeamType | null
   }
 
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => Boolean)
   async removeTeamMember(
     @CurrentUser() user: JwtPayload,
@@ -86,6 +95,7 @@ export class TeamResolver {
     return true
   }
 
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => TeamMemberType)
   async updateTeamMemberRole(
     @CurrentUser() user: JwtPayload,
@@ -99,6 +109,7 @@ export class TeamResolver {
     ) as unknown as TeamMemberType
   }
 
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => Boolean)
   async deleteTeam(
     @CurrentUser() user: JwtPayload,
@@ -106,5 +117,18 @@ export class TeamResolver {
   ): Promise<boolean> {
     await this.teamService.deleteTeam(teamId, user.sub)
     return true
+  }
+
+  @Mutation(() => WaitlistEntryType, { description: 'Join the Team Plan waitlist' })
+  async joinWaitlist(
+    @Args('input') input: JoinWaitlistInput,
+  ): Promise<WaitlistEntryType> {
+    return this.teamService.joinWaitlist(
+      input.email,
+      input.name,
+      input.company,
+      input.teamSize,
+      input.source ?? 'landing',
+    ) as unknown as WaitlistEntryType
   }
 }

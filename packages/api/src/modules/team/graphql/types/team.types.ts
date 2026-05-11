@@ -126,3 +126,42 @@ export class UpdateMemberRoleInput {
   @Field(() => TeamRoleEnum)
   role: TeamRoleEnum
 }
+
+@ObjectType()
+export class WaitlistEntryType {
+  @Field(() => ID)
+  id: string
+
+  @Field()
+  email: string
+
+  @Field({ nullable: true })
+  name?: string
+
+  @Field({ nullable: true })
+  company?: string
+
+  @Field({ nullable: true })
+  teamSize?: string
+
+  @Field()
+  createdAt: Date
+}
+
+@InputType()
+export class JoinWaitlistInput {
+  @Field()
+  email: string
+
+  @Field({ nullable: true })
+  name?: string
+
+  @Field({ nullable: true })
+  company?: string
+
+  @Field({ nullable: true })
+  teamSize?: string
+
+  @Field({ nullable: true })
+  source?: string
+}
