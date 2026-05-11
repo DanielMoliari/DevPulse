@@ -158,17 +158,13 @@ export class AnalyticsService {
     }))
   }
 
-  // Pull every repo the user owns, track up to the plan limit (most-recently-pushed first),
-  // and queue sync jobs for tracked ones. The rest are imported as untracked so they appear
-  // in the list and can be manually tracked if the user upgrades.
+  // Pull every repo the user owns, track all of them (all plans now have unlimited tracked repos),
+  // and queue sync jobs for each. Repos are sorted most-recently-pushed first so syncs prioritise active work.
   async importFromGitHub(userId: string): Promise<{ imported: number; tracked: number }> {
     const accessToken = await this.identityService.getDecryptedToken(userId)
     const ghRepos = await this.github.getUserRepositories(accessToken)
 
-    const user = await this.identityService.findById(userId)
-    const limit = user ? PLAN_LIMITS[user.plan].maxTrackedRepos : 5
-
-    // Sort by most recently pushed so the user's active repos get the tracked slots
+    // Sort by most recently pushed so active repos sync first
     const sorted = [...ghRepos].sort((a, b) => {
       const at = a.pushedAt ? new Date(a.pushedAt).getTime() : 0
       const bt = b.pushedAt ? new Date(b.pushedAt).getTime() : 0
@@ -178,34 +174,25 @@ export class AnalyticsService {
     let imported = 0
     let tracked = 0
     for (const ghRepo of sorted) {
-      const shouldTrack = tracked < limit
       const repo = await this.metricsRepo.upsertRepository({
         userId,
         githubRepoId: String(ghRepo.id),
         fullName: ghRepo.fullName,
         language: ghRepo.language,
         pushedAt: ghRepo.pushedAt,
-        isTracked: shouldTrack,
+        isTracked: true,
         isPrivate: ghRepo.private,
       })
-      if (shouldTrack) {
-        await this.enqueueSyncJob(userId, repo.id, repo.fullName)
-        tracked++
-      }
+      await this.enqueueSyncJob(userId, repo.id, repo.fullName)
+      tracked++
       imported++
     }
 
-    this.logger.log(`Initial import for ${userId}: ${imported} repos imported, ${tracked} tracked (plan limit: ${limit})`)
+    this.logger.log(`Initial import for ${userId}: ${imported} repos imported and tracked`)
     return { imported, tracked }
   }
 
   async trackRepository(userId: string, githubRepoId: string): Promise<Repository> {
-    // Plan-gate: skip the limit check if the repo is already tracked (re-tracking shouldn't bump the count)
-    const existing = await this.metricsRepo.findRepositoryByGithubId(userId, githubRepoId)
-    if (!existing || !existing.isTracked) {
-      await this.assertCanTrackMore(userId)
-    }
-
     const accessToken = await this.identityService.getDecryptedToken(userId)
     const repos = await this.github.getUserRepositories(accessToken)
     const target = repos.find((r) => String(r.id) === githubRepoId)
@@ -224,19 +211,6 @@ export class AnalyticsService {
     return repo
   }
 
-  // Throws ForbiddenException with a user-facing upgrade message if adding one more
-  // tracked repo would exceed the user's plan cap.
-  private async assertCanTrackMore(userId: string): Promise<void> {
-    const user = await this.identityService.findById(userId)
-    if (!user) throw new NotFoundException('User not found')
-    const limit = PLAN_LIMITS[user.plan].maxTrackedRepos
-    const tracked = (await this.metricsRepo.findRepositoriesByUser(userId, true)).length
-    if (tracked >= limit) {
-      throw new ForbiddenException(
-        `${user.plan} plan allows up to ${limit} tracked repos. Upgrade to track more.`,
-      )
-    }
-  }
 
   async untrackRepository(userId: string, repoId: string): Promise<boolean> {
     const repo = await this.metricsRepo.findRepositoryById(repoId)
@@ -704,6 +678,49 @@ export class AnalyticsService {
 
   async invalidateDashboardCache(userId: string): Promise<void> {
     await this.redis.delPattern(`analytics:dashboard:${userId}:*`)
+  }
+
+  async getPersonalRecords(userId: string): Promise<{
+    commits: { today: number; allTimeBest: number; isRecord: boolean }
+    additions: { today: number; allTimeBest: number; isRecord: boolean }
+    netLines: { today: number; allTimeBest: number; isRecord: boolean }
+    hasNewRecord: boolean
+  }> {
+    const allTime = await this.metricsRepo.getDailyMetrics(userId, new Date('2008-01-01'), new Date())
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0)
+    const todayKey = today.toISOString().slice(0, 10)
+
+    const byDay = new Map<string, { commits: number; additions: number; netLines: number }>()
+    for (const m of allTime) {
+      const d = m.date instanceof Date ? m.date : new Date(m.date as unknown as string)
+      const key = d.toISOString().slice(0, 10)
+      const existing = byDay.get(key) ?? { commits: 0, additions: 0, netLines: 0 }
+      existing.commits += m.commits
+      existing.additions += m.additions
+      existing.netLines += m.additions - m.deletions
+      byDay.set(key, existing)
+    }
+
+    const todayData = byDay.get(todayKey) ?? { commits: 0, additions: 0, netLines: 0 }
+    let bestCommits = 0, bestAdditions = 0, bestNetLines = 0
+    for (const [key, day] of byDay) {
+      if (key === todayKey) continue
+      if (day.commits > bestCommits) bestCommits = day.commits
+      if (day.additions > bestAdditions) bestAdditions = day.additions
+      if (day.netLines > bestNetLines) bestNetLines = day.netLines
+    }
+
+    const commitsRecord = todayData.commits > 0 && todayData.commits > bestCommits
+    const additionsRecord = todayData.additions > 0 && todayData.additions > bestAdditions
+    const netLinesRecord = todayData.netLines > 0 && todayData.netLines > bestNetLines
+
+    return {
+      commits: { today: todayData.commits, allTimeBest: Math.max(bestCommits, todayData.commits), isRecord: commitsRecord },
+      additions: { today: todayData.additions, allTimeBest: Math.max(bestAdditions, todayData.additions), isRecord: additionsRecord },
+      netLines: { today: todayData.netLines, allTimeBest: Math.max(bestNetLines, todayData.netLines), isRecord: netLinesRecord },
+      hasNewRecord: commitsRecord || additionsRecord || netLinesRecord,
+    }
   }
 
   private async enqueueSyncJob(userId: string, repositoryId: string, fullName: string): Promise<void> {

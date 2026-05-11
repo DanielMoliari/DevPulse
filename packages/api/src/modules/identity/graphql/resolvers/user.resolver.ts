@@ -7,12 +7,6 @@ import { UpdateProfileInput } from '../types/update-profile.input'
 import { UserType } from '../types/user.type'
 
 @InputType()
-class UpdateNotificationPrefsInput {
-  @Field({ nullable: true }) notificationsEnabled?: boolean
-  @Field({ nullable: true }) streakAlertsEnabled?: boolean
-}
-
-@InputType()
 class UpdatePublicProfilePrefsInput {
   @Field({ nullable: true }) showRepos?: boolean
   @Field({ nullable: true }) showStreak?: boolean
@@ -49,19 +43,6 @@ export class UserResolver {
   ): Promise<UserType> {
     const user = await this.identityService.updateProfile(currentUser.sub, input)
     if (!user) throw new NotFoundException('User not found')
-    return user as unknown as UserType
-  }
-
-  @Mutation(() => UserType, { description: 'Update notification preferences' })
-  @UseGuards(GqlAuthGuard)
-  async updateNotificationPrefs(
-    @CurrentUser() currentUser: JwtPayload,
-    @Args('input') input: UpdateNotificationPrefsInput,
-  ): Promise<UserType> {
-    const data: Record<string, boolean> = {}
-    if (input.notificationsEnabled !== undefined) data['notificationsEnabled'] = input.notificationsEnabled
-    if (input.streakAlertsEnabled !== undefined) data['streakAlertsEnabled'] = input.streakAlertsEnabled
-    const user = await this.identityService.updateProfile(currentUser.sub, data as { name?: string; email?: string })
     return user as unknown as UserType
   }
 

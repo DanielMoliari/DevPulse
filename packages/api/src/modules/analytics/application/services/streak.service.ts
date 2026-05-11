@@ -15,6 +15,27 @@ export class StreakService {
     return this.metricsRepo.getOrCreateStreak(userId)
   }
 
+  static readonly MAX_FREEZES = 3
+
+  async applyFreeze(userId: string): Promise<{ ok: boolean; reason?: string; streak: Streak }> {
+    const streak = await this.metricsRepo.getOrCreateStreak(userId)
+    if (streak.currentStreak === 0) {
+      return { ok: false, reason: 'No active streak to freeze', streak }
+    }
+    if (streak.freezesUsed >= StreakService.MAX_FREEZES) {
+      return { ok: false, reason: 'No freezes remaining (max 3 used)', streak }
+    }
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0)
+    const lastActive = streak.lastActiveDate ? new Date(streak.lastActiveDate) : null
+    if (lastActive) lastActive.setUTCHours(0, 0, 0, 0)
+    if (lastActive && lastActive.getTime() === today.getTime()) {
+      return { ok: false, reason: 'Already committed today — no freeze needed', streak }
+    }
+    const updated = await this.metricsRepo.incrementFreezesUsed(userId)
+    return { ok: true, streak: updated }
+  }
+
   async recalculate(userId: string): Promise<Streak> {
     const thirtyMonthsAgo = new Date()
     thirtyMonthsAgo.setMonth(thirtyMonthsAgo.getMonth() - 30)

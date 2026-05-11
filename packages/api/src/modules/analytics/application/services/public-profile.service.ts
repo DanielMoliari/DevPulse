@@ -57,6 +57,7 @@ export class PublicProfileService {
   private async buildPublicProfile(username: string): Promise<PublicProfileData | null> {
     const user = await this.identity.findByUsername(username)
     if (!user || !user.username) return null
+    // All profiles are public by default — no opt-in gate
 
     // Fetch everything in parallel — none of these depend on each other.
     const [streak, techGraph, repos, allMetrics] = await Promise.all([

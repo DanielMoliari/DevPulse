@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { gql } from '@apollo/client'
 import { useQuery } from '@apollo/client/react'
 import { AuthRedirect } from '@/components/auth-redirect'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   GitCommit,
   Flame,
@@ -13,6 +15,7 @@ import {
   TrendingUp,
   Globe,
   Zap,
+  Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandLogo } from '@/components/brand-logo'
@@ -194,6 +197,38 @@ function formatCount(n: number): string {
   return String(n)
 }
 
+function RepoSearchBar() {
+  const router = useRouter()
+  const [query, setQuery] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = query.trim()
+    if (!trimmed) return
+    const parts = trimmed.replace(/^https?:\/\/github\.com\//, '').split('/')
+    if (parts.length >= 2) {
+      router.push(`/r/${parts[0]}/${parts[1]}`)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-8 flex w-full max-w-md mx-auto items-center gap-2">
+      <div className="relative flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="owner/repo — analyze any public repo"
+          className="w-full rounded-lg border border-border bg-surface py-2.5 pl-9 pr-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/30"
+        />
+      </div>
+      <Button type="submit" variant="outline" size="sm" className="shrink-0 cursor-pointer">
+        Analyze
+      </Button>
+    </form>
+  )
+}
+
 function HeroPreview() {
   const heatCols = Array.from({ length: 52 })
   const heatRows = Array.from({ length: 7 })
@@ -351,6 +386,8 @@ export default function LandingPage() {
           </div>
 
           <p className="mt-4 text-xs text-slate-600">Free forever · No credit card needed · Connects in 30 seconds</p>
+
+          <RepoSearchBar />
         </div>
 
         {/* Dashboard preview */}
@@ -367,8 +404,8 @@ export default function LandingPage() {
             {[
               { value: stats ? formatCount(stats.commitCount) : '…', label: 'Commits tracked' },
               { value: stats ? formatCount(stats.userCount) : '…', label: 'Developers joined' },
-              { value: '98%', label: 'Uptime SLA' },
-              { value: '< 1s', label: 'Sync latency' },
+              { value: '6', label: 'Metrics per repo' },
+              { value: 'Free', label: 'To get started' },
             ].map(({ value, label }) => (
               <div key={label} className="text-center">
                 <p className="text-3xl font-black text-cyan-400">{value}</p>

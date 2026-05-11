@@ -13,23 +13,29 @@ const PLANS = [
     name: 'Free',
     monthly: 0,
     yearly: 0,
-    description: 'For exploring',
-    features: ['5 tracked repositories', '30-day history', 'Public profile', 'Weekly digest email'],
+    description: 'See what you\'ve built',
+    features: [
+      'All your repositories, tracked',
+      '90-day commit history',
+      'Streak tracking',
+      'Public shareable profile',
+      'Weekly digest email',
+    ],
     cta: 'Current plan',
     highlight: false,
   },
   {
     id: 'PRO',
     name: 'Pro',
-    monthly: 8,
-    yearly: 77, // ~$6.42/mo billed yearly = ~20% off
-    description: 'For serious developers',
+    monthly: 7,
+    yearly: 67,
+    description: 'Your complete coding story',
     features: [
-      '100 tracked repositories',
-      'Full history',
-      'Real-time sync (1h interval)',
-      'Advanced analytics',
-      'API access',
+      'Everything in Free',
+      'Full history — every commit ever',
+      'Year in Code (Wrapped-style recap)',
+      'Rank pills on public profile',
+      'Unlimited streak freezes',
       'Priority support',
     ],
     cta: 'Upgrade to Pro',
@@ -38,17 +44,17 @@ const PLANS = [
   {
     id: 'TEAM',
     name: 'Team',
-    monthly: 24,
-    yearly: 230,
-    description: 'For squads & agencies',
+    monthly: 0,
+    yearly: 0,
+    description: 'Coming soon',
     features: [
-      '500 tracked repositories',
       'Everything in Pro',
-      'Custom domain',
-      'Team dashboard',
-      'SSO (coming soon)',
+      'Team dashboard & leaderboard',
+      'Per-developer analytics',
+      'Engineering velocity reports',
+      'SSO & admin controls',
     ],
-    cta: 'Upgrade to Team',
+    cta: 'Join waitlist',
     highlight: false,
   },
 ] as const
@@ -143,6 +149,7 @@ export function UpgradeModal({ open, onOpenChange, currentPlan = 'FREE', headlin
 
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
               {PLANS.map((plan) => {
+                const isTeam = plan.id === 'TEAM'
                 const price = interval === 'monthly' ? plan.monthly : plan.yearly
                 const isCurrent = plan.id === currentPlan
                 const monthlyEquivalent = interval === 'yearly' && plan.yearly > 0
@@ -155,22 +162,33 @@ export function UpgradeModal({ open, onOpenChange, currentPlan = 'FREE', headlin
                       plan.highlight
                         ? 'border-accent/40 bg-gradient-to-b from-accent/5 to-transparent shadow-lg shadow-accent/10'
                         : 'border-border-2 bg-surface'
-                    }`}
+                    } ${isTeam ? 'opacity-70' : ''}`}
                   >
                     {plan.highlight && (
                       <div className="mb-3 inline-flex w-fit items-center gap-1 rounded-full bg-accent/15 px-2.5 py-0.5 text-[10px] font-semibold text-accent">
                         <Sparkles className="h-3 w-3" /> MOST POPULAR
                       </div>
                     )}
+                    {isTeam && (
+                      <div className="mb-3 inline-flex w-fit items-center gap-1 rounded-full bg-surface-2 border border-border px-2.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                        COMING SOON
+                      </div>
+                    )}
                     <p className="text-sm font-semibold text-slate-100">{plan.name}</p>
                     <p className="text-xs text-slate-500">{plan.description}</p>
                     <div className="mt-4 flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-slate-100">${price}</span>
-                      <span className="text-xs text-slate-500">
-                        /{interval === 'monthly' ? 'mo' : 'yr'}
-                      </span>
+                      {isTeam ? (
+                        <span className="text-2xl font-bold text-slate-600">—</span>
+                      ) : (
+                        <>
+                          <span className="text-3xl font-bold text-slate-100">${price}</span>
+                          <span className="text-xs text-slate-500">
+                            /{interval === 'monthly' ? 'mo' : 'yr'}
+                          </span>
+                        </>
+                      )}
                     </div>
-                    {monthlyEquivalent && (
+                    {!isTeam && monthlyEquivalent && (
                       <p className="mt-0.5 text-[11px] text-slate-600">~${monthlyEquivalent}/mo billed yearly</p>
                     )}
                     <ul className="mt-5 flex-1 space-y-2">
@@ -186,6 +204,13 @@ export function UpgradeModal({ open, onOpenChange, currentPlan = 'FREE', headlin
                         <button
                           disabled
                           className="w-full cursor-not-allowed rounded-md bg-surface-2 py-2 text-xs font-medium text-slate-500"
+                        >
+                          {plan.cta}
+                        </button>
+                      ) : isTeam ? (
+                        <button
+                          disabled
+                          className="w-full cursor-not-allowed rounded-md bg-surface-2 py-2 text-xs font-medium text-slate-600"
                         >
                           {plan.cta}
                         </button>

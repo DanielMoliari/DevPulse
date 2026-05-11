@@ -88,6 +88,7 @@ export interface StreakData {
   currentStreak: number
   longestStreak: number
   lastActiveDate: string | null
+  freezesUsed: number
 }
 
 export interface HeatmapDay {

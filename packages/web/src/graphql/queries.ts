@@ -96,6 +96,7 @@ export const STREAK_QUERY = gql`
       currentStreak
       longestStreak
       lastActiveDate
+      freezesUsed
     }
   }
 `
@@ -140,6 +141,17 @@ export const INSIGHTS_QUERY = gql`
 export const HOURLY_ACTIVITY_QUERY = gql`
   query HourlyActivity {
     hourlyActivity { hours peakHour peakRatio }
+  }
+`
+
+export const PERSONAL_RECORDS_QUERY = gql`
+  query PersonalRecords {
+    personalRecords {
+      hasNewRecord
+      commits { today allTimeBest isRecord }
+      additions { today allTimeBest isRecord }
+      netLines { today allTimeBest isRecord }
+    }
   }
 `
 
@@ -197,7 +209,7 @@ export const PLATFORM_STATS_QUERY = gql`
 export const REPOSITORY_DETAIL_QUERY = gql`
   query RepositoryDetail($id: ID!) {
     repositoryDetail(id: $id) {
-      repository { id fullName language isTracked syncState lastSyncedAt }
+      repository { id fullName language isTracked isPrivate syncState lastSyncedAt }
       description homepage defaultBranch
       stars forks watchers openIssues sizeKb
       createdAt pushedAt

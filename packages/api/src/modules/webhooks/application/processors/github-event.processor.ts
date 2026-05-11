@@ -51,7 +51,7 @@ export class GitHubEventProcessor {
     await this.syncQueue.add(
       'sync',
       { userId: repo.userId, repositoryId: repo.id, fullName },
-      { jobId: `sync:${repo.id}`, removeOnComplete: true },
+      { jobId: `sync-${repo.id}`, removeOnComplete: true },
     )
 
     this.logger.log(`Webhook triggered sync for ${fullName}`)

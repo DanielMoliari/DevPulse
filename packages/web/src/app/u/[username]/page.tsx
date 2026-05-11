@@ -410,6 +410,25 @@ export default async function PublicProfilePage({ params }: PageProps) {
         </Card>
       </section>
 
+      {/* Secondary stats strip */}
+      <section className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-surface px-4 py-3 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Lines written</p>
+          <p className="mt-1 text-2xl font-black tabular-nums text-slate-100">{formatNumber(profile.totalAdditions)}</p>
+          <p className="mt-0.5 text-[10px] text-slate-600">all time</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface px-4 py-3 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">PRs opened</p>
+          <p className="mt-1 text-2xl font-black tabular-nums text-slate-100">{formatNumber(profile.totalPrs)}</p>
+          <p className="mt-0.5 text-[10px] text-slate-600">all time</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface px-4 py-3 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Commits / active day</p>
+          <p className="mt-1 text-2xl font-black tabular-nums text-slate-100">{profile.avgCommitsPerActiveDay}</p>
+          <p className="mt-0.5 text-[10px] text-slate-600">avg intensity</p>
+        </div>
+      </section>
+
       {/* Ranking context badges */}
       {(rankLabel ?? linesLabel ?? prsRankLabel ?? intensityLabel ?? commitSharePct) && (
         <div className="flex flex-wrap items-center justify-center gap-2">

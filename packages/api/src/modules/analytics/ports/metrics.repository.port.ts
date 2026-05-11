@@ -44,6 +44,7 @@ export interface IMetricsRepository {
   findStaleTrackedRepositories(olderThanMs: number): Promise<Repository[]>
   getOrCreateStreak(userId: string): Promise<Streak>
   updateStreak(userId: string, data: Partial<Pick<Streak, 'currentStreak' | 'longestStreak' | 'lastActiveDate'>>): Promise<Streak>
+  incrementFreezesUsed(userId: string): Promise<Streak>
 }
 
 export const METRICS_REPOSITORY = Symbol('IMetricsRepository')

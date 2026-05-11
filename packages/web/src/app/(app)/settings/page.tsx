@@ -81,12 +81,9 @@ export default function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
 
-  if (user && name === '') {
-    if (user.name) setName(user.name)
-  }
-
   useEffect(() => {
     if (!user) return
+    if (user.name && !name) setName(user.name)
     setWeeklyDigest(user.notificationsEnabled)
     setStreakAlerts(user.streakAlertsEnabled)
     setShowStreak(user.publicShowStreak)
@@ -403,7 +400,7 @@ export default function SettingsPage() {
     const planDescription =
       user?.plan === 'FREE' ? 'Limited to 5 tracked repositories'
       : user?.plan === 'PRO' ? 'Up to 100 tracked repositories with full history'
-      : user?.plan === 'TEAM' ? 'Up to 500 tracked repositories + custom domain'
+      : user?.plan === 'TEAM' ? 'Up to 500 tracked repositories + early feature access'
       : ''
 
     const billingSuccess = searchParams.get('billing') === 'success'

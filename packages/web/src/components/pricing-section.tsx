@@ -22,25 +22,31 @@ const PLANS: PlanRow[] = [
   {
     id: 'FREE',
     name: 'Free',
-    description: 'For exploring',
+    description: 'See what you\'ve built',
     monthly: 0,
     yearly: 0,
-    features: ['5 tracked repositories', '30-day history', 'Public profile', 'Weekly digest email'],
+    features: [
+      'All your repositories, tracked',
+      '90-day commit history',
+      'Streak tracking',
+      'Public shareable profile',
+      'Weekly digest email',
+    ],
     highlight: false,
     cta: 'Get started free',
   },
   {
     id: 'PRO',
     name: 'Pro',
-    description: 'For serious developers',
-    monthly: 8,
-    yearly: 77,
+    description: 'Your complete coding story',
+    monthly: 7,
+    yearly: 67,
     features: [
-      '100 tracked repositories',
-      'Full history',
-      'Real-time sync (1h interval)',
-      'Advanced analytics',
-      'API access',
+      'Everything in Free',
+      'Full history — every commit ever',
+      'Year in Code (Wrapped-style recap)',
+      'Rank pills on public profile',
+      'Unlimited streak freezes',
       'Priority support',
     ],
     highlight: true,
@@ -49,31 +55,34 @@ const PLANS: PlanRow[] = [
   {
     id: 'TEAM',
     name: 'Team',
-    description: 'For squads & agencies',
-    monthly: 24,
-    yearly: 230,
+    description: 'Coming soon',
+    monthly: 0,
+    yearly: 0,
     features: [
-      '500 tracked repositories',
       'Everything in Pro',
-      'Custom domain',
-      'Team dashboard',
-      'SSO (coming soon)',
+      'Team dashboard & leaderboard',
+      'Per-developer analytics',
+      'Engineering velocity reports',
+      'SSO & admin controls',
     ],
     highlight: false,
-    cta: 'Start with Team',
+    cta: 'Join waitlist',
   },
 ]
 
 const COMPARE_ROWS = [
-  { label: 'Repositories tracked',  free: '5',       pro: '100',       team: '500'      },
-  { label: 'Commit history',        free: '30 days', pro: 'All time',  team: 'All time' },
-  { label: 'Sync interval',         free: '6h',      pro: '1h',        team: '1h'       },
-  { label: 'Advanced analytics',    free: false,     pro: true,        team: true       },
-  { label: 'API access',            free: false,     pro: true,        team: true       },
-  { label: 'Public profile & card', free: true,      pro: true,        team: true       },
-  { label: 'Weekly digest email',   free: true,      pro: true,        team: true       },
-  { label: 'Custom domain',         free: false,     pro: false,       team: true       },
-  { label: 'Priority support',      free: false,     pro: true,        team: true       },
+  { label: 'Repositories tracked',       free: 'All',        pro: 'All',         team: 'All'      },
+  { label: 'Commit history',             free: '90 days',    pro: 'All time',    team: 'All time' },
+  { label: 'Auto-sync interval',         free: '6h',         pro: '1h',          team: '1h'       },
+  { label: 'Year in Code recap',         free: false,        pro: true,          team: true       },
+  { label: 'Public profile & card',      free: true,         pro: true,          team: true       },
+  { label: 'Rank pills on profile',      free: false,        pro: true,          team: true       },
+  { label: 'Streak freezes',             free: '1 lifetime', pro: 'Unlimited',   team: 'Unlimited'},
+  { label: 'Weekly digest email',        free: true,         pro: true,          team: true       },
+  { label: 'Team dashboard',             free: false,        pro: false,         team: true       },
+  { label: 'Engineering velocity report',free: false,        pro: false,         team: true       },
+  { label: 'SSO & admin controls',       free: false,        pro: false,         team: true       },
+  { label: 'Priority support',           free: false,        pro: true,          team: true       },
 ]
 
 export function PricingSection() {
@@ -85,7 +94,7 @@ export function PricingSection() {
         <div className="mb-12 text-center">
           <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-cyan-400">Pricing</p>
           <h2 className="text-4xl font-bold tracking-tight">Simple, transparent pricing</h2>
-          <p className="mt-4 text-slate-500">Start free. Upgrade when you need more.</p>
+          <p className="mt-4 text-slate-500">Start free — all your repos, no credit card. Upgrade when you want the full picture.</p>
 
           {/* Billing toggle */}
           <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-surface p-1">
@@ -114,6 +123,7 @@ export function PricingSection() {
         {/* Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 items-stretch">
           {PLANS.map((plan) => {
+            const isTeam = plan.id === 'TEAM'
             const price = annual ? plan.yearly : plan.monthly
             const monthlyEquivalent = annual && plan.yearly > 0 ? (plan.yearly / 12).toFixed(2) : null
             return (
@@ -123,11 +133,16 @@ export function PricingSection() {
                   plan.highlight
                     ? 'border-cyan-500/40 bg-gradient-to-b from-cyan-500/10 to-bg'
                     : 'border-border bg-surface'
-                }`}
+                } ${isTeam ? 'opacity-80' : ''}`}
               >
                 {plan.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-cyan-500 px-3 py-0.5 text-[11px] font-bold text-black tracking-wide">
                     <Sparkles className="h-3 w-3" /> MOST POPULAR
+                  </div>
+                )}
+                {isTeam && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-surface-2 border border-border px-3 py-0.5 text-[11px] font-bold text-slate-400 tracking-wide">
+                    COMING SOON
                   </div>
                 )}
                 <div className="mb-5">
@@ -136,20 +151,26 @@ export function PricingSection() {
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-500">{plan.description}</p>
                   <div className="mt-3 flex items-baseline gap-1">
-                    <span className="tabular text-4xl font-black text-slate-100">${price}</span>
-                    <span className="text-slate-500">/{annual ? 'yr' : 'mo'}</span>
+                    {isTeam ? (
+                      <span className="text-2xl font-bold text-slate-400">—</span>
+                    ) : (
+                      <>
+                        <span className="tabular text-4xl font-black text-slate-100">${price}</span>
+                        <span className="text-slate-500">/{annual ? 'yr' : 'mo'}</span>
+                      </>
+                    )}
                   </div>
-                  {monthlyEquivalent ? (
+                  {!isTeam && (monthlyEquivalent ? (
                     <p className="mt-1 text-xs text-cyan-500">~${monthlyEquivalent}/mo billed yearly</p>
                   ) : plan.id === 'FREE' ? (
                     <p className="mt-1 text-xs text-slate-600">No credit card required</p>
                   ) : (
                     <p className="mt-1 text-xs text-slate-600">
-                      ${(plan.yearly / 12).toFixed(0)}/mo billed annually
+                      ~${(plan.yearly / 12).toFixed(2)}/mo billed annually
                     </p>
-                  )}
+                  ))}
                 </div>
-                <ul className="mb-6 space-y-2.5">
+                <ul className="mb-6 space-y-2.5 flex-1">
                   {plan.features.map((f) => (
                     <li
                       key={f}
@@ -168,8 +189,11 @@ export function PricingSection() {
                   asChild
                   variant={plan.highlight ? 'default' : 'outline'}
                   className="mt-auto w-full cursor-pointer"
+                  disabled={isTeam}
                 >
-                  <a href={`${API_URL}/api/v1/auth/github`}>{plan.cta}</a>
+                  <a href={isTeam ? '#' : `${API_URL}/api/v1/auth/github`}>
+                    {plan.cta}
+                  </a>
                 </Button>
               </div>
             )

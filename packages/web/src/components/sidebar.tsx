@@ -10,6 +10,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/ui-store'
@@ -19,6 +20,7 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/repos', label: 'Repositories', icon: GitBranch },
   { href: '/streaks', label: 'Streaks', icon: Flame },
+  { href: `/year/${new Date().getFullYear()}`, label: 'Year in Code', icon: Sparkles },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

@@ -11,11 +11,12 @@ import { HourlyActivity } from '@/components/hourly-activity'
 import { TechGraduationCard } from '@/components/tech-graduation-card'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY, HOURLY_ACTIVITY_QUERY, REPOSITORIES_QUERY } from '@/graphql/queries'
+import { METRICS_QUERY, STREAK_QUERY, HEATMAP_QUERY, INSIGHTS_QUERY, HOURLY_ACTIVITY_QUERY, REPOSITORIES_QUERY, PERSONAL_RECORDS_QUERY } from '@/graphql/queries'
 import { SYNC_REPOSITORY } from '@/graphql/mutations'
 import type { DailyMetrics, HeatmapMetric, StreakData, HeatmapDay, Insights, Repository } from '@/graphql/types'
 import { getTrend } from '@/lib/utils'
-import { Coffee, Sparkles, Clock } from 'lucide-react'
+import { Coffee, Sparkles, Clock, Trophy, TrendingUp } from 'lucide-react'
+import { useUpgradeModalStore } from '@/store/upgrade-modal-store'
 import { OnboardingPrompt } from '@/components/onboarding-prompt'
 import { StreakMilestoneCard } from '@/components/streak-milestone-card'
 import { StreakAtRiskBanner } from '@/components/streak-at-risk-banner'
@@ -62,6 +63,7 @@ function sum(rows: DailyMetrics[], key: keyof DailyMetrics): number {
 }
 
 export default function DashboardPage() {
+  const openUpgradeModal = useUpgradeModalStore((s) => s.openModal)
   const [range, setRange] = useState<Range>('week')
   const [heatmapMetric, setHeatmapMetric] = useState<HeatmapMetric>('COMMITS')
   const [dismissedMilestones, setDismissedMilestones] = useState<number[]>(() => {
@@ -105,7 +107,16 @@ export default function DashboardPage() {
 
   const { data: reposData, startPolling: startReposPolling, stopPolling: stopReposPolling } = useQuery<{ repositories: Repository[] }>(REPOSITORIES_QUERY)
   const { data: meData } = useQuery<{ me: User }>(ME_QUERY)
+  const { refetch: refetchRecords } = useQuery<{
+    personalRecords: {
+      hasNewRecord: boolean
+      commits: { today: number; allTimeBest: number; isRecord: boolean }
+      additions: { today: number; allTimeBest: number; isRecord: boolean }
+      netLines: { today: number; allTimeBest: number; isRecord: boolean }
+    }
+  }>(PERSONAL_RECORDS_QUERY, { fetchPolicy: 'cache-and-network' })
   const [syncRepository] = useMutation(SYNC_REPOSITORY)
+  const [recordToast, setRecordToast] = useState<string | null>(null)
 
   // Silently trigger a background sync for any tracked repo not synced in the last 6 hours
   useEffect(() => {
@@ -132,6 +143,16 @@ export default function DashboardPage() {
         void refetchStreak()
         void refetchHeatmap()
         void refetchInsights()
+        void refetchRecords().then((res) => {
+          const pr = res.data?.personalRecords
+          if (!pr?.hasNewRecord) return
+          const records: string[] = []
+          if (pr.commits.isRecord) records.push(`${pr.commits.today} commits`)
+          if (pr.additions.isRecord) records.push(`${pr.additions.today.toLocaleString()} lines added`)
+          if (pr.netLines.isRecord) records.push(`${pr.netLines.today.toLocaleString()} net lines`)
+          setRecordToast(`New personal best: ${records.join(' · ')}`)
+          setTimeout(() => setRecordToast(null), 7000)
+        })
       }
     }
     prevIsSyncing.current = isSyncing
@@ -140,8 +161,10 @@ export default function DashboardPage() {
   const metrics = metricsData?.metrics ?? []
   const prev = prevData?.metrics ?? []
   const streak = streakData?.streak
-  const trackedRepos = (reposData?.repositories ?? []).filter((r) => r.isTracked)
+  const allRepos = reposData?.repositories ?? []
+  const trackedRepos = allRepos.filter((r) => r.isTracked)
   const hasTrackedRepos = trackedRepos.length > 0
+  const isFree = meData?.me?.plan === 'FREE'
   const currentStreak = streak?.currentStreak ?? 0
   const MILESTONES = [7, 30, 60, 100, 200, 365]
   const hitMilestone = [...MILESTONES].reverse().find((m) => currentStreak >= m && !dismissedMilestones.includes(m)) ?? null
@@ -153,9 +176,11 @@ export default function DashboardPage() {
 
   const commits = sum(kpiSlice, 'commits')
   const linesAdded = sum(kpiSlice, 'additions')
+  const reviewsDone = sum(kpiSlice, 'reviewsDone')
   const activeDaysAllTime = (allTimeData?.metrics ?? []).filter((m) => m.commits > 0).length
 
   const sparkline = metrics.slice(-30).map((m) => ({ value: m.commits }))
+  const reviewsSparkline = metrics.slice(-30).map((m) => ({ value: m.reviewsDone }))
 
   const showTrends = prevVars !== null
   const trend = (current: number, key: keyof DailyMetrics) =>
@@ -178,6 +203,14 @@ export default function DashboardPage() {
       {/* Streak at-risk warning — shown after 20:00 UTC when no commit today */}
       <StreakAtRiskBanner streak={streak} loading={streakLoading} />
 
+      {/* Personal record toast */}
+      {recordToast && (
+        <div className="flex items-center gap-3 rounded-xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 to-amber-500/5 px-4 py-3">
+          <Trophy className="h-5 w-5 shrink-0 text-yellow-400" />
+          <p className="text-sm font-medium text-yellow-200">{recordToast}</p>
+        </div>
+      )}
+
       {/* Range selector */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-base font-semibold text-slate-100">Overview</h2>
@@ -196,8 +229,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI cards — Commits · Lines added · Streak · Active days */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* KPI cards — Commits · Lines added · Reviews · Streak · Active days */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <MetricCard
           title={`Commits ${meta.kpiLabel}`}
           value={commits}
@@ -210,6 +243,13 @@ export default function DashboardPage() {
           title={`Lines added ${meta.kpiLabel}`}
           value={linesAdded}
           {...(getTrend(linesAdded, sum(prevSlice, 'additions')) && showTrends ? { trend: getTrend(linesAdded, sum(prevSlice, 'additions'))! } : {})}
+          loading={metricsLoading}
+        />
+        <MetricCard
+          title={`Reviews ${meta.kpiLabel}`}
+          value={reviewsDone}
+          {...(trend(reviewsDone, 'reviewsDone') ? { trend: trend(reviewsDone, 'reviewsDone')! } : {})}
+          sparkline={reviewsSparkline}
           loading={metricsLoading}
         />
         <Card className="relative overflow-hidden">
@@ -237,6 +277,32 @@ export default function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {/* FREE plan nudge — history limited to 90 days */}
+      {isFree && hasTrackedRepos && (
+        <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/8 via-surface to-surface">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+          <div className="relative px-6 py-5 flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/10">
+              <TrendingUp className="h-5 w-5 text-accent" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <p className="text-sm font-semibold text-slate-100">
+                Você está vendo os últimos 90 dias de histórico
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                PRO desbloqueia todo o histórico — cada commit, linha e streak desde sempre.
+              </p>
+            </div>
+            <button
+              onClick={() => openUpgradeModal('Ver toda sua história de código')}
+              className="shrink-0 cursor-pointer rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-accent/20 hover:bg-accent/90 transition-colors whitespace-nowrap"
+            >
+              Upgrade para PRO →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Section divider: Contribution activity ── */}
       <div className="flex items-center gap-3">

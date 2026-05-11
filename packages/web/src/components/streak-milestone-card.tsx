@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 const MILESTONES = [7, 30, 60, 100, 200, 365]
 
 function getMilestone(streak: number): number | null {
-  return MILESTONES.find((m) => streak === m) ?? null
+  return [...MILESTONES].reverse().find((m) => streak >= m) ?? null
 }
 
 function getMilestoneLabel(days: number): string {

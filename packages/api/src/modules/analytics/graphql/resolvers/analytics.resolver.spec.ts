@@ -9,6 +9,7 @@ vi.mock('@prisma/client', () => ({
 import { AnalyticsResolver } from './analytics.resolver'
 import type { AnalyticsService } from '../../application/services/analytics.service'
 import type { StreakService } from '../../application/services/streak.service'
+import type { IdentityService } from '../../../identity/application/services/identity.service'
 import type { JwtPayload } from '../../../../common/decorators/current-user.decorator'
 
 interface FakeDailyMetrics {
@@ -34,6 +35,10 @@ const makeStreakService = () => ({
   recalculate: vi.fn(),
 }) as unknown as StreakService
 
+const makeIdentityService = () => ({
+  findById: vi.fn().mockResolvedValue({ plan: 'PRO' }),
+}) as unknown as IdentityService
+
 describe('AnalyticsResolver', () => {
   let resolver: AnalyticsResolver
   let analyticsService: AnalyticsService & Record<string, ReturnType<typeof vi.fn>>
@@ -42,8 +47,9 @@ describe('AnalyticsResolver', () => {
   beforeEach(() => {
     analyticsService = makeAnalyticsService() as AnalyticsService & Record<string, ReturnType<typeof vi.fn>>
     streakService = makeStreakService() as StreakService & Record<string, ReturnType<typeof vi.fn>>
+    const identityService = makeIdentityService()
     // Instantiate directly — avoids NestJS DI which needs emitDecoratorMetadata
-    resolver = new AnalyticsResolver(analyticsService, streakService)
+    resolver = new AnalyticsResolver(analyticsService, streakService, identityService)
   })
 
   it('metrics() calls getDashboardMetrics with correct args and maps the result', async () => {

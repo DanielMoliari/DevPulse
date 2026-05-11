@@ -14,6 +14,12 @@ enum Plan {
   TEAM
 }
 
+enum TeamRole {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
 enum SyncState {
   IDLE
   SYNCING
@@ -54,6 +60,8 @@ model User {
   dailyMetrics  DailyMetrics[]
   streak        Streak?
   weeklyDigests WeeklyDigest[]
+  ownedTeams    Team[]         @relation("TeamOwner")
+  teamMembers   TeamMember[]
 
   @@map("users")
 }
@@ -136,6 +144,55 @@ model WeeklyDigest {
   @@unique([userId, weekStart])
   @@index([userId, sentAt])
   @@map("weekly_digests")
+}
+
+// ─── Team Context ─────────────────────────────────────────────────────────────
+
+model Team {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  ownerId         String
+  slackWebhookUrl String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  owner   User         @relation("TeamOwner", fields: [ownerId], references: [id])
+  members TeamMember[]
+  invites TeamInvite[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  role     TeamRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model TeamInvite {
+  id         String    @id @default(cuid())
+  teamId     String
+  email      String
+  role       TeamRole  @default(MEMBER)
+  token      String    @unique @default(cuid())
+  acceptedAt DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, email])
+  @@map("team_invites")
 }
 
 // ─── Infrastructure ───────────────────────────────────────────────────────────

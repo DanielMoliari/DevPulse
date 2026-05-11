@@ -85,6 +85,9 @@ export class StreakType {
 
   @Field({ nullable: true })
   lastActiveDate?: Date
+
+  @Field(() => Int)
+  freezesUsed: number
 }
 
 @ObjectType()
@@ -106,6 +109,15 @@ export class SyncResultType {
 
   @Field()
   queued: boolean
+}
+
+@ObjectType()
+export class ImportResultType {
+  @Field(() => Int)
+  imported: number
+
+  @Field(() => Int)
+  tracked: number
 }
 
 @InputType()
@@ -282,4 +294,19 @@ export class RepoDetailType {
   @Field(() => [EcosystemConnectionType], { nullable: true }) ecosystemConnections?: EcosystemConnectionType[]
   @Field(() => FileOwnershipType, { nullable: true }) fileOwnership?: FileOwnershipType
   @Field(() => [FileHotspotType], { nullable: true }) fileHotspots?: FileHotspotType[]
+}
+
+@ObjectType()
+export class PersonalRecordItemType {
+  @Field(() => Int) today: number
+  @Field(() => Int) allTimeBest: number
+  @Field() isRecord: boolean
+}
+
+@ObjectType()
+export class PersonalRecordsType {
+  @Field(() => PersonalRecordItemType) commits: PersonalRecordItemType
+  @Field(() => PersonalRecordItemType) additions: PersonalRecordItemType
+  @Field(() => PersonalRecordItemType) netLines: PersonalRecordItemType
+  @Field() hasNewRecord: boolean
 }

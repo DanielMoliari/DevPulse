@@ -97,6 +97,11 @@ type HourlyActivityType {
   peakRatio: Float!
 }
 
+type ImportResultType {
+  imported: Int!
+  tracked: Int!
+}
+
 type InsightsType {
   burnout: BurnoutSignalType
   hourlyActivity: HourlyActivityType
@@ -136,7 +141,7 @@ type Mutation {
   deleteAccount: Boolean!
 
   """Re-import all GitHub repositories for the current user"""
-  importGitHubRepositories: Boolean!
+  importFromGitHub: ImportResultType!
 
   """Send a test weekly digest email to the authenticated user"""
   sendTestDigest: Boolean!
@@ -161,6 +166,22 @@ type Mutation {
 
   """Update public profile visibility preferences"""
   updatePublicProfilePrefs(input: UpdatePublicProfilePrefsInput!): UserType!
+
+  """Apply a streak freeze for today — max 3 lifetime"""
+  useStreakFreeze: StreakType!
+}
+
+type PersonalRecordItemType {
+  allTimeBest: Int!
+  isRecord: Boolean!
+  today: Int!
+}
+
+type PersonalRecordsType {
+  additions: PersonalRecordItemType!
+  commits: PersonalRecordItemType!
+  hasNewRecord: Boolean!
+  netLines: PersonalRecordItemType!
 }
 
 """User subscription plan"""
@@ -265,6 +286,9 @@ type Query {
 
   """Get daily metrics for a date range"""
   metrics(input: MetricsRangeInput!): [DailyMetricsType!]!
+
+  """Compare today's metrics against all-time daily bests"""
+  personalRecords: PersonalRecordsType!
 
   """Public platform stats for the landing page"""
   platformStats: PlatformStatsType!
@@ -405,6 +429,7 @@ type SearchRepoResultType {
 
 type StreakType {
   currentStreak: Int!
+  freezesUsed: Int!
   lastActiveDate: DateTime
   longestStreak: Int!
 }

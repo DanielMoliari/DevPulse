@@ -103,3 +103,14 @@ export const UPDATE_AUTO_SYNC_PREFS = gql`
     }
   }
 `
+
+export const USE_STREAK_FREEZE = gql`
+  mutation UseStreakFreeze {
+    useStreakFreeze {
+      currentStreak
+      longestStreak
+      lastActiveDate
+      freezesUsed
+    }
+  }
+`

@@ -10,14 +10,14 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ME_QUERY, REPOSITORIES_QUERY, TECH_GRAPH_QUERY } from '@/graphql/queries'
+import { ME_QUERY, REPOSITORIES_QUERY, TECH_GRAPH_QUERY, LANGUAGE_HISTORY_QUERY } from '@/graphql/queries'
 import { TRACK_REPOSITORY, UNTRACK_REPOSITORY, SYNC_REPOSITORY, IMPORT_GITHUB_REPOSITORIES } from '@/graphql/mutations'
 import type { Repository, User } from '@/graphql/types'
-import { PLAN_LIMITS } from '@/lib/plan-limits'
 import { languageColor } from '@/lib/utils'
 import { useUpgradeModalStore } from '@/store/upgrade-modal-store'
+import { LanguageStream } from '@/components/language-stream'
 
-type Tab = 'repos' | 'stack'
+type Tab = 'repos' | 'stack' | 'evolution'
 
 interface GraphNode { id: string; type: 'repo' | 'language'; name: string; value: number }
 interface GraphLink { source: string; target: string; value: number }
@@ -76,8 +76,7 @@ export default function ReposPage() {
   const repos = data?.repositories ?? []
 
   const tracked = repos.filter((r) => r.isTracked).length
-  const planLimit = meData?.me?.plan ? PLAN_LIMITS[meData.me.plan]?.maxTrackedRepos ?? null : null
-  const overLimit = planLimit !== null && tracked >= planLimit
+  const isFree = meData?.me?.plan === 'FREE'
 
   // Collect unique languages from repos that have a primary language
   const availableLangs = useMemo(() => {
@@ -139,6 +138,15 @@ export default function ReposPage() {
           <Network className="h-3 w-3 shrink-0" />
           Stack
         </button>
+        <button
+          onClick={() => setActiveTab('evolution')}
+          className={`cursor-pointer flex items-center gap-1.5 rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
+            activeTab === 'evolution' ? 'bg-surface-2 text-slate-100' : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <Layers className="h-3 w-3 shrink-0" />
+          Evolution
+        </button>
       </div>
 
       {activeTab === 'repos' && (
@@ -173,47 +181,18 @@ export default function ReposPage() {
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <h2 className="text-base font-semibold text-slate-100">Repositories</h2>
-                  {planLimit !== null ? (
-                    <Badge variant={overLimit ? 'warning' : 'default'}>
-                      {tracked} / {planLimit} tracked
-                    </Badge>
-                  ) : (
-                    <Badge variant="default">{tracked} tracked</Badge>
-                  )}
+                  <Badge variant="default">{tracked} tracked</Badge>
                 </div>
-                {meData?.me?.plan === 'FREE' && (
+                {isFree && (
                   <button
-                    onClick={() => openUpgradeModal('Track unlimited repos')}
+                    onClick={() => openUpgradeModal('Ver histórico completo')}
                     className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/15 transition-colors"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    Upgrade to Pro
+                    Histórico completo → PRO
                   </button>
                 )}
               </div>
-
-              {/* Plan-limit nudge */}
-              {overLimit && meData?.me?.plan === 'FREE' && (
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-accent/20 bg-accent/5 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-dim">
-                      <Sparkles className="h-4 w-4 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-100">You&apos;ve hit the FREE plan cap</p>
-                      <p className="text-xs text-slate-500">
-                        Pro tracks up to {PLAN_LIMITS.PRO.maxTrackedRepos} repos with full history and real-time sync.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => openUpgradeModal("You've hit the FREE plan cap")}
-                    className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/15 transition-colors"
-                  >
-                    Upgrade →
-                  </button>
-                </div>
-              )}
 
               {/* Filters */}
               <div className="flex items-center gap-2 flex-wrap">
@@ -318,12 +297,25 @@ export default function ReposPage() {
         </>
       )}
 
-      {activeTab === 'stack' && <TechStackView />}
+      {activeTab === 'stack' && (
+        <TechStackView
+          isFree={isFree}
+          onUpgrade={() => openUpgradeModal('Ver toda sua stack de tecnologia')}
+        />
+      )}
+      {activeTab === 'evolution' && (
+        <LangEvolutionView
+          isFree={isFree}
+          onUpgrade={() => openUpgradeModal('Ver a evolução completa da sua stack')}
+        />
+      )}
     </div>
   )
 }
 
-function TechStackView() {
+function TechStackView({ isFree, onUpgrade }: {
+  isFree: boolean; onUpgrade: () => void
+}) {
   const { data, loading } = useQuery<TechGraphResponse>(TECH_GRAPH_QUERY)
   const [hoverLang, setHoverLang] = useState<string | null>(null)
   const [hoverRepo, setHoverRepo] = useState<string | null>(null)
@@ -400,15 +392,17 @@ function TechStackView() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
-        <Card className="!p-0 overflow-hidden">
-          <ConstellationView
-            langs={filtered}
-            hoverLang={hoverLang}
-            hoverRepo={hoverRepo}
-            onHoverLang={setHoverLang}
-            onHoverRepo={setHoverRepo}
-          />
-        </Card>
+        <div>
+          <Card className="!p-0 overflow-hidden">
+            <ConstellationView
+              langs={filtered}
+              hoverLang={hoverLang}
+              hoverRepo={hoverRepo}
+              onHoverLang={setHoverLang}
+              onHoverRepo={setHoverRepo}
+            />
+          </Card>
+        </div>
 
         <div className="space-y-4">
           <Card className="!p-3">
@@ -451,6 +445,31 @@ function TechStackView() {
           </Card>
         </div>
       </div>
+
+      {isFree && (
+        <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/8 via-surface to-surface">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+          <div className="relative px-6 py-6 flex flex-col sm:flex-row items-center gap-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/10">
+              <Sparkles className="h-5 w-5 text-accent" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <p className="text-sm font-semibold text-slate-100">
+                Constellation baseada nos últimos 90 dias
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                Faça upgrade para PRO e veja sua stack completa com todo o histórico de commits.
+              </p>
+            </div>
+            <button
+              onClick={onUpgrade}
+              className="shrink-0 cursor-pointer rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-accent/20 hover:bg-accent/90 transition-colors whitespace-nowrap"
+            >
+              Ver stack completa →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -715,6 +734,87 @@ function Tile({ icon: Icon, label, value }: {
         <Icon className="h-3 w-3" /> {label}
       </div>
       <p className="tabular mt-0.5 text-base font-bold text-slate-100">{value}</p>
+    </div>
+  )
+}
+
+interface LangHistoryResponse {
+  languageHistory: { years: number[]; series: { language: string; values: number[] }[] }
+}
+
+function LangEvolutionView({ isFree, onUpgrade }: {
+  isFree: boolean; onUpgrade: () => void
+}) {
+  const { data, loading } = useQuery<LangHistoryResponse>(LANGUAGE_HISTORY_QUERY)
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-72" />
+        <Skeleton className="h-[480px] w-full rounded-xl" />
+      </div>
+    )
+  }
+
+  const years = data?.languageHistory.years ?? []
+  const series = data?.languageHistory.series ?? []
+
+  if (series.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface-2">
+          <Layers className="h-6 w-6 text-slate-500" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-slate-400">No language history yet</p>
+          <p className="mt-1 text-xs text-slate-600">
+            Sync at least one repository to see how your stack evolved over time.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-base font-semibold text-slate-100">Language Evolution</h2>
+          <p className="mt-0.5 text-xs text-slate-500">How your tech stack has shifted year over year</p>
+        </div>
+        {isFree && (
+          <span className="text-[11px] text-amber-500/80 font-medium">Baseado nos últimos 90 dias</span>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-border bg-surface p-4">
+        <LanguageStream years={years} series={series} height={480} />
+      </div>
+
+      {isFree && (
+        <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/8 via-surface to-surface">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+          <div className="relative px-6 py-6 flex flex-col sm:flex-row items-center gap-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/10">
+              <Sparkles className="h-5 w-5 text-accent" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <p className="text-sm font-semibold text-slate-100">
+                Evolução baseada nos últimos 90 dias
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                Faça upgrade para PRO e veja como sua stack evoluiu desde o primeiro commit — todos os anos.
+              </p>
+            </div>
+            <button
+              onClick={onUpgrade}
+              className="shrink-0 cursor-pointer rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-accent/20 hover:bg-accent/90 transition-colors whitespace-nowrap"
+            >
+              Ver evolução completa →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

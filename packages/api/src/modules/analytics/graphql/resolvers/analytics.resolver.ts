@@ -4,6 +4,8 @@ import { GqlAuthGuard } from '../../../../common/guards/gql-auth.guard'
 import { CurrentUser, type JwtPayload } from '../../../../common/decorators/current-user.decorator'
 import { AnalyticsService, computeHealthScore } from '../../application/services/analytics.service'
 import { StreakService } from '../../application/services/streak.service'
+import { PLAN_LIMITS } from '../../../identity/domain/plan-limits'
+import { IdentityService } from '../../../identity/application/services/identity.service'
 import {
   CodeHealthType,
   DailyMetricsType,
@@ -13,9 +15,11 @@ import {
   HeatmapDayType,
   HeatmapMetric,
   HourlyActivityType,
+  ImportResultType,
   InsightsType,
   LanguageHistoryType,
   MetricsRangeInput,
+  PersonalRecordsType,
   RepoCuriosityType,
   RepoDetailType,
   RepositoryType,
@@ -31,6 +35,7 @@ export class AnalyticsResolver {
   constructor(
     private readonly analyticsService: AnalyticsService,
     private readonly streakService: StreakService,
+    private readonly identityService: IdentityService,
   ) {}
 
   @Query(() => [RepositoryType], { description: 'List all tracked repositories' })
@@ -44,7 +49,17 @@ export class AnalyticsResolver {
     @CurrentUser() user: JwtPayload,
     @Args('input') input: MetricsRangeInput,
   ): Promise<DailyMetricsType[]> {
-    const raw = await this.analyticsService.getDashboardMetrics(user.sub, input.from, input.to)
+    // Clamp `from` for FREE users to their historyDays window
+    const userData = await this.identityService.findById(user.sub)
+    const historyDays = userData ? PLAN_LIMITS[userData.plan].historyDays : 90
+    let from: Date = input.from instanceof Date ? input.from : new Date(input.from)
+    if (historyDays !== null) {
+      const earliest = new Date()
+      earliest.setUTCDate(earliest.getUTCDate() - historyDays)
+      earliest.setUTCHours(0, 0, 0, 0)
+      if (from < earliest) from = earliest
+    }
+    const raw = await this.analyticsService.getDashboardMetrics(user.sub, from, input.to)
     // Each tracked repo stores its own row per day — collapse to one row per date so the dashboard
     // sees user-wide totals instead of duplicate points per repo.
     const byDate = new Map<string, DailyMetrics>()
@@ -75,8 +90,30 @@ export class AnalyticsResolver {
     return {
       currentStreak: s.currentStreak,
       longestStreak: s.longestStreak,
+      freezesUsed: s.freezesUsed,
       ...(lastActive ? { lastActiveDate: lastActive } : {}),
     }
+  }
+
+  @Mutation(() => StreakType, { description: 'Apply a streak freeze for today — max 3 lifetime' })
+  async useStreakFreeze(@CurrentUser() user: JwtPayload): Promise<StreakType> {
+    const result = await this.streakService.applyFreeze(user.sub)
+    if (!result.ok) throw new Error(result.reason ?? 'Cannot apply freeze')
+    const s = result.streak
+    const lastActive = s.lastActiveDate
+      ? (s.lastActiveDate instanceof Date ? s.lastActiveDate : new Date(s.lastActiveDate as unknown as string))
+      : null
+    return {
+      currentStreak: s.currentStreak,
+      longestStreak: s.longestStreak,
+      freezesUsed: s.freezesUsed,
+      ...(lastActive ? { lastActiveDate: lastActive } : {}),
+    }
+  }
+
+  @Query(() => PersonalRecordsType, { description: 'Compare today\'s metrics against all-time daily bests' })
+  async personalRecords(@CurrentUser() user: JwtPayload): Promise<PersonalRecordsType> {
+    return this.analyticsService.getPersonalRecords(user.sub)
   }
 
   @Query(() => TechGraphType, { description: 'User-wide tech graph: every tracked repo × every language it uses' })
@@ -252,10 +289,9 @@ export class AnalyticsResolver {
     return repo as unknown as RepositoryType
   }
 
-  @Mutation(() => Boolean, { description: 'Re-import all GitHub repositories for the current user' })
-  async importGitHubRepositories(@CurrentUser() user: JwtPayload): Promise<boolean> {
-    await this.analyticsService.importFromGitHub(user.sub)
-    return true
+  @Mutation(() => ImportResultType, { description: 'Re-import all GitHub repositories for the current user' })
+  async importFromGitHub(@CurrentUser() user: JwtPayload): Promise<ImportResultType> {
+    return this.analyticsService.importFromGitHub(user.sub)
   }
 
   @Mutation(() => Boolean, { description: 'Stop tracking a repository' })

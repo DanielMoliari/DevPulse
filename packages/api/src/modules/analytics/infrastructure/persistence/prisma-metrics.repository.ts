@@ -135,4 +135,11 @@ export class PrismaMetricsRepository implements IMetricsRepository {
   ): Promise<Streak> {
     return this.prisma.streak.update({ where: { userId }, data })
   }
+
+  incrementFreezesUsed(userId: string): Promise<Streak> {
+    return this.prisma.streak.update({
+      where: { userId },
+      data: { freezesUsed: { increment: 1 }, lastActiveDate: new Date() },
+    })
+  }
 }

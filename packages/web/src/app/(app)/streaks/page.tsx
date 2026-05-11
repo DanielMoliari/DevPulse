@@ -1,16 +1,18 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useQuery } from '@apollo/client/react'
-import { Flame, CheckCircle2, Target } from 'lucide-react'
+import { useQuery, useMutation } from '@apollo/client/react'
+import { Flame, CheckCircle2, Target, Snowflake, Sparkles } from 'lucide-react'
 import { StreakBadge } from '@/components/streak-badge'
 import { Heatmap } from '@/components/heatmap'
 import { ActivityChart } from '@/components/activity-chart'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { STREAK_QUERY, HEATMAP_QUERY, METRICS_QUERY } from '@/graphql/queries'
-import type { StreakData, HeatmapDay, DailyMetrics } from '@/graphql/types'
+import { STREAK_QUERY, HEATMAP_QUERY, METRICS_QUERY, ME_QUERY } from '@/graphql/queries'
+import { USE_STREAK_FREEZE } from '@/graphql/mutations'
+import type { StreakData, HeatmapDay, DailyMetrics, User } from '@/graphql/types'
 import { formatRelative, pluralize } from '@/lib/utils'
+import { useUpgradeModalStore } from '@/store/upgrade-modal-store'
 
 function yearRange() {
   const to = new Date()
@@ -39,11 +41,24 @@ function metricRangeVars(days: number | null) {
 
 export default function StreaksPage() {
   const yearVars = useMemo(() => yearRange(), [])
+  const openUpgradeModal = useUpgradeModalStore((s) => s.openModal)
   const { data: streakData, loading: streakLoading } = useQuery<{ streak: StreakData }>(STREAK_QUERY)
   const { data: heatmapData, loading: heatmapLoading } = useQuery<{ heatmap: HeatmapDay[] }>(HEATMAP_QUERY)
   const { data: metricsData } = useQuery<{ metrics: DailyMetrics[] }>(METRICS_QUERY, {
     variables: yearVars,
   })
+  const { data: meData } = useQuery<{ me: User }>(ME_QUERY)
+
+  const [freezeError, setFreezeError] = useState<string | null>(null)
+  const [freezeSuccess, setFreezeSuccess] = useState(false)
+  const [useStreakFreeze, { loading: freezing }] = useMutation<{ useStreakFreeze: StreakData }>(
+    USE_STREAK_FREEZE,
+    {
+      refetchQueries: [{ query: STREAK_QUERY }],
+      onCompleted: () => { setFreezeSuccess(true); setTimeout(() => setFreezeSuccess(false), 3000) },
+      onError: (e) => { setFreezeError(e.message); setTimeout(() => setFreezeError(null), 4000) },
+    },
+  )
 
   const [metricRange, setMetricRange] = useState<MetricRange>('30d')
   const metricDays = METRIC_RANGES.find(r => r.value === metricRange)!.days
@@ -68,9 +83,19 @@ export default function StreaksPage() {
     return String(n)
   }
 
-  const MILESTONES = [7, 30, 60, 100]
+  const isFree = meData?.me?.plan === 'FREE'
+
+  const MILESTONES = [7, 30, 60, 100, 200, 365]
   const currentStreak = streak?.currentStreak ?? 0
   const longestStreak = streak?.longestStreak ?? 0
+  const freezesUsed = streak?.freezesUsed ?? 0
+  const freezesRemaining = Math.max(0, 3 - freezesUsed)
+  const today = new Date()
+  today.setUTCHours(0, 0, 0, 0)
+  const lastActive = streak?.lastActiveDate ? new Date(streak.lastActiveDate) : null
+  if (lastActive) lastActive.setUTCHours(0, 0, 0, 0)
+  const committedToday = lastActive !== null && lastActive.getTime() === today.getTime()
+  const canFreeze = currentStreak > 0 && !committedToday && freezesRemaining > 0
 
   return (
     <div className="space-y-6">
@@ -89,6 +114,38 @@ export default function StreaksPage() {
           </>
         )}
       </div>
+
+      {/* Streak freeze card — visible when streak is active */}
+      {!streakLoading && currentStreak > 0 && (
+        <div className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 ${
+          canFreeze ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-border bg-surface'
+        }`}>
+          <div className="flex items-center gap-3">
+            <Snowflake className={`h-5 w-5 shrink-0 ${canFreeze ? 'text-cyan-400' : 'text-slate-600'}`} />
+            <div>
+              <p className="text-sm font-medium text-slate-200">Streak freeze</p>
+              <p className="text-xs text-slate-500">
+                {freezesRemaining} of 3 remaining · protects your streak for one day
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {freezeError && <p className="text-xs text-red-400">{freezeError}</p>}
+            {freezeSuccess && <p className="text-xs text-emerald-400">Freeze applied!</p>}
+            <button
+              disabled={!canFreeze || freezing}
+              onClick={() => { void useStreakFreeze() }}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                canFreeze && !freezing
+                  ? 'bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/25'
+                  : 'cursor-not-allowed bg-surface-2 text-slate-600'
+              }`}
+            >
+              {freezing ? 'Applying…' : committedToday ? 'Already committed' : freezesRemaining === 0 ? 'No freezes left' : 'Use freeze'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Spotify Wrapped 2×2 stats grid */}
       <div className="grid grid-cols-2 gap-4">
@@ -132,6 +189,32 @@ export default function StreaksPage() {
           <p className="mt-2 text-xs uppercase tracking-widest text-slate-500">days coding</p>
         </div>
       </div>
+
+      {/* FREE plan nudge — history limited to 90 days */}
+      {isFree && (
+        <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-gradient-to-br from-accent/8 via-surface to-surface">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+          <div className="relative px-6 py-5 flex flex-col sm:flex-row items-center gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent/30 bg-accent/10">
+              <Sparkles className="h-5 w-5 text-accent" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <p className="text-sm font-semibold text-slate-100">
+                Estatísticas baseadas nos últimos 90 dias
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                PRO desbloqueia histórico completo — veja seus melhores streaks e evolução desde sempre.
+              </p>
+            </div>
+            <button
+              onClick={() => openUpgradeModal('Histórico completo de streaks')}
+              className="shrink-0 cursor-pointer rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-accent/20 hover:bg-accent/90 transition-colors whitespace-nowrap"
+            >
+              Upgrade para PRO →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Contribution heatmap */}
       <Card>

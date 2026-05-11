@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useQuery, useMutation } from '@apollo/client/react'
 import {
@@ -61,7 +61,7 @@ interface CodeHealth {
 
 interface RepoDetail {
   repositoryDetail: {
-    repository: { id: string; fullName: string; language: string | null; isTracked: boolean; syncState: string; lastSyncedAt: string | null }
+    repository: { id: string; fullName: string; language: string | null; isTracked: boolean; isPrivate: boolean; syncState: string; lastSyncedAt: string | null }
     description: string | null
     homepage: string | null
     defaultBranch: string
@@ -123,16 +123,28 @@ const CHART_RANGES: { label: string; value: ChartRange }[] = [
 
 export default function RepoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { data, loading, refetch } = useQuery<RepoDetail>(REPOSITORY_DETAIL_QUERY, { variables: { id } })
-  const [syncRepo, { loading: syncing }] = useMutation(SYNC_REPOSITORY)
+  const { data, loading, refetch, startPolling, stopPolling } = useQuery<RepoDetail>(REPOSITORY_DETAIL_QUERY, { variables: { id } })
+  const [syncRepo] = useMutation(SYNC_REPOSITORY)
+  const [syncing, setSyncing] = useState(false)
   const [chartRange, setChartRange] = useState<ChartRange>('all')
+
+  const syncState = data?.repositoryDetail?.repository?.syncState
+
+  // Stop polling once the sync finishes
+  useEffect(() => {
+    if (syncing && syncState && syncState !== 'SYNCING') {
+      stopPolling()
+      setSyncing(false)
+      void refetch()
+    }
+  }, [syncing, syncState, stopPolling, refetch])
 
   if (loading || !data) return <RepoDetailSkeleton />
   const d = data.repositoryDetail
   const r = d.repository
   const [owner, name] = r.fullName.split('/')
 
-  const isPrivate = d.stars === 0 && d.forks === 0 && d.watchers === 0
+  const isPrivate = r.isPrivate
 
   const cutoffDays = chartRange === '30d' ? 30 : chartRange === '90d' ? 90 : null
   const filteredMetrics = cutoffDays
@@ -143,8 +155,9 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
     : d.recentMetrics
 
   async function handleSync() {
+    setSyncing(true)
     await syncRepo({ variables: { id } })
-    setTimeout(() => refetch(), 4000)
+    startPolling(2000)
   }
 
   return (
