@@ -8,7 +8,6 @@ import { EmbedCardButton } from '@/components/embed-card-button'
 import { ShareButton } from '@/components/share-button'
 import { ssrGraphQL } from '@/lib/graphql-ssr'
 import { formatNumber, languageColor } from '@/lib/utils'
-import { BrandLogo } from '@/components/brand-logo'
 import type { PublicProfile } from '@/graphql/types'
 
 const PROFILE_QUERY = `

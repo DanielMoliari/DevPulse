@@ -103,8 +103,8 @@ function MiniProfileCard() {
             { w: '25%', c: '#a78bfa' },
             { w: '20%', c: '#34d399' },
             { w: '10%', c: '#f59e0b' },
-          ].map((s, i) => (
-            <div key={i} style={{ width: s.w, backgroundColor: s.c }} />
+          ].map((s, _i) => (
+            <div key={_i} style={{ width: s.w, backgroundColor: s.c }} />
           ))}
         </div>
         <p className="mt-1.5 text-[9px] text-slate-600">TypeScript · Python · Go · Rust</p>
@@ -314,12 +314,12 @@ function HeroPreview() {
                 { w: '28%', c: '#a78bfa' },
                 { w: '18%', c: '#34d399' },
                 { w: '12%', c: '#f59e0b' },
-              ].map((s, i) => (
-                <div key={i} style={{ width: s.w, backgroundColor: s.c }} />
+              ].map((s, _i) => (
+                <div key={_i} style={{ width: s.w, backgroundColor: s.c }} />
               ))}
             </div>
             <div className="flex gap-3">
-              {['TypeScript', 'Python', 'Go', 'Rust'].map((l, i) => (
+              {['TypeScript', 'Python', 'Go', 'Rust'].map((l) => (
                 <span key={l} className="text-[8px] text-slate-500">{l}</span>
               ))}
             </div>

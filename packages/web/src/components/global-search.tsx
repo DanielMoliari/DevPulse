@@ -91,7 +91,6 @@ export function GlobalSearch() {
   }, [openModal, closeModal])
 
   // Search when debounced user query is ready
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (debouncedParsed.mode === 'user' && debouncedParsed.username.length >= 2) {
       void search({ variables: { query: debouncedParsed.username } })
