@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { LoadingScreen } from '@/components/loading-screen'
 import { BILLING_STATUS_QUERY, ME_QUERY, REPOSITORIES_QUERY } from '@/graphql/queries'
 import {
   UPDATE_PROFILE,
@@ -82,6 +83,7 @@ function SettingsPageInner() {
   const [copied, setCopied] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
+  const [redirectingToStripe, setRedirectingToStripe] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -105,15 +107,26 @@ function SettingsPageInner() {
     }
     if (checkout === 'pro' && !loading && user?.plan === 'FREE') {
       router.replace('/settings?tab=billing')
+      setRedirectingToStripe(true)
       void createCheckout({ variables: { plan: 'PRO', interval: 'monthly' } }).then(({ data }) => {
         if (data?.createCheckoutSession?.url) {
           window.location.href = data.createCheckoutSession.url
         } else {
+          setRedirectingToStripe(false)
           openUpgradeModal()
         }
-      }).catch(() => openUpgradeModal())
+      }).catch(() => { setRedirectingToStripe(false); openUpgradeModal() })
     }
   }, [searchParams, router, loading, user?.plan, createCheckout, openUpgradeModal])
+
+  if (redirectingToStripe) {
+    return (
+      <LoadingScreen
+        message="Preparing your checkout…"
+        subMessage="Redirecting to Stripe, just a moment."
+      />
+    )
+  }
 
   function handleSave() {
     void updateProfile({ variables: { input: { name: name || undefined } } })
