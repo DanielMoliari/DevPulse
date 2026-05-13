@@ -45,6 +45,7 @@ export class StreakService {
 
     const result = StreakCalculator.calculate(activeDates)
 
+    await this.metricsRepo.getOrCreateStreak(userId)
     const updated = await this.metricsRepo.updateStreak(userId, {
       currentStreak: result.currentStreak,
       longestStreak: result.longestStreak,
