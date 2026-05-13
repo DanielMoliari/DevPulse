@@ -9,12 +9,16 @@ interface StripeCheckoutSessionLike {
   customer?: string | null
   subscription?: string | null
   metadata?: Record<string, string> | null
+  // expanded subscription object when retrieve is called
+  subscription_details?: { current_period_end?: number } | null
 }
 
 interface StripeSubscriptionLike {
   id: string
   status: string
   current_period_end: number | null
+  cancel_at_period_end?: boolean
+  items?: { data?: Array<{ price?: { recurring?: { interval?: string } } }> }
   metadata?: Record<string, string> | null
 }
 
@@ -103,12 +107,15 @@ export class BillingService {
       if (!user) return
 
       const isCanceled = ['canceled', 'unpaid', 'incomplete_expired'].includes(sub.status)
+      const interval = sub.items?.data?.[0]?.price?.recurring?.interval
+      const billingInterval = interval === 'year' ? 'yearly' : interval === 'month' ? 'monthly' : undefined
 
       await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          subscriptionStatus: sub.status,
+          subscriptionStatus: sub.cancel_at_period_end ? 'canceled' : sub.status,
           currentPeriodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+          ...(billingInterval ? { billingInterval } : {}),
           ...(isCanceled ? { plan: 'FREE' as Plan, stripeSubscriptionId: null } : {}),
         },
       })
