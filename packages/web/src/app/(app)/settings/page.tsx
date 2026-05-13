@@ -83,7 +83,9 @@ function SettingsPageInner() {
   const [copied, setCopied] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
-  const [redirectingToStripe, setRedirectingToStripe] = useState(false)
+  const [redirectingToStripe, setRedirectingToStripe] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('checkout') === 'pro'
+  )
 
   useEffect(() => {
     if (!user) return
