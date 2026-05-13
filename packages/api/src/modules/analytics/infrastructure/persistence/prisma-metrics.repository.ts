@@ -39,11 +39,12 @@ export class PrismaMetricsRepository implements IMetricsRepository {
     return this.prisma.repository.upsert({
       where: { userId_githubRepoId: { userId: data.userId, githubRepoId: data.githubRepoId } },
       create: { ...rest, isTracked, isPrivate },
-      // Update visibility and pushedAt on every sync
       update: {
         fullName: data.fullName,
         language: data.language,
         isPrivate,
+        // Always update isTracked so re-import on PRO unlocks previously locked repos
+        isTracked,
         ...(data.pushedAt !== undefined ? { pushedAt: data.pushedAt } : {}),
       },
     })
