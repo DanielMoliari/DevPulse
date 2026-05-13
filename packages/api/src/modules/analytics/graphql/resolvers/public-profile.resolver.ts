@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common'
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler'
 import { Args, Query, Resolver } from '@nestjs/graphql'
 import { PublicProfileType } from '../../../identity/graphql/types/public-profile.type'
 import { PublicProfileService } from '../../application/services/public-profile.service'
@@ -12,6 +14,8 @@ export class PublicProfileResolver {
   ) {}
 
   // ── Global search — no auth required ────────────────────────────────────
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 10, ttl: 10000 } })
   @Query(() => SearchProfileResultType, { nullable: true, name: 'searchProfile' })
   async searchProfile(@Args('query') query: string): Promise<SearchProfileResultType | null> {
     const username = query.trim()
@@ -60,6 +64,8 @@ export class PublicProfileResolver {
   }
 
   // ── Repo search — no auth required ──────────────────────────────────────
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 10, ttl: 10000 } })
   @Query(() => SearchRepoResultType, { nullable: true, name: 'searchRepo' })
   async searchRepo(
     @Args('owner') owner: string,
@@ -70,7 +76,9 @@ export class PublicProfileResolver {
   }
 
   // ── Public read query ────────────────────────────────────────────────────
-  // Intentionally NO @UseGuards: the /u/{username} page must work for anonymous visitors.
+  // Intentionally NO @UseGuards(GqlAuthGuard): the /u/{username} page must work for anonymous visitors.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 20, ttl: 10000 } })
   @Query(() => PublicProfileType, {
     nullable: true,
     description: 'Anonymous-readable curated profile for any registered user.',

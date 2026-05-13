@@ -2,9 +2,11 @@ import { Controller, Get, Logger, Query, Res, UnauthorizedException } from '@nes
 import { ConfigService } from '@nestjs/config'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import type { FastifyReply } from 'fastify'
+import { randomBytes } from 'node:crypto'
 import { GitHubProfileVO } from '../../domain/value-objects/github-profile.vo'
 import { IdentityService } from '../../application/services/identity.service'
 import { WelcomeEmailService } from '../../../../modules/notifications/application/services/welcome-email.service'
+import { RedisService } from '../../../../infrastructure/cache/redis.service'
 
 interface GitHubTokenResponse {
   access_token?: string
@@ -35,6 +37,7 @@ export class AuthController {
     private readonly identityService: IdentityService,
     private readonly config: ConfigService,
     private readonly welcomeEmailService: WelcomeEmailService,
+    private readonly redis: RedisService,
   ) {}
 
   @Get('github')
@@ -46,8 +49,10 @@ export class AuthController {
     const clientId = this.config.getOrThrow<string>('GITHUB_CLIENT_ID')
     const callbackUrl = this.config.getOrThrow<string>('GITHUB_CALLBACK_URL')
     const scope = ['user:email', 'repo', 'read:org'].join(' ')
-    const state = intent ? `intent:${intent}` : undefined
-    const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent(scope)}${state ? `&state=${encodeURIComponent(state)}` : ''}`
+    const csrf = randomBytes(32).toString('hex')
+    const statePayload = JSON.stringify({ csrf, intent: intent ?? null })
+    await this.redis.client.set(`oauth:state:${csrf}`, statePayload, 'EX', 600)
+    const url = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(csrf)}`
     await reply.status(302).redirect(url)
   }
 
@@ -59,6 +64,13 @@ export class AuthController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     if (!code) throw new UnauthorizedException('Missing OAuth code')
+    if (!state) throw new UnauthorizedException('Missing OAuth state')
+
+    const stored = await this.redis.client.get(`oauth:state:${state}`)
+    if (!stored) throw new UnauthorizedException('Invalid or expired OAuth state')
+    await this.redis.client.del(`oauth:state:${state}`)
+
+    const statePayload = JSON.parse(stored) as { csrf: string; intent: string | null }
 
     const accessToken = await this.exchangeCodeForToken(code)
     const profile = await this.fetchGitHubProfile(accessToken)
@@ -74,8 +86,7 @@ export class AuthController {
     const { accessToken: jwt, user } = await this.identityService.loginWithGitHub(vo)
     void this.welcomeEmailService.maybeSendWelcome(user)
     const frontendUrl = this.frontendBaseUrl()
-    const intent = state?.startsWith('intent:') ? state.slice(7) : undefined
-    const intentParam = intent ? `&intent=${encodeURIComponent(intent)}` : ''
+    const intentParam = statePayload.intent ? `&intent=${encodeURIComponent(statePayload.intent)}` : ''
     await reply.status(302).redirect(`${frontendUrl}/auth/callback?token=${jwt}${intentParam}`)
   }
 

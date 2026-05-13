@@ -14,9 +14,22 @@ async function bootstrap() {
     { rawBody: true },
   )
 
+  // Security headers on every response
+  app.use((_req: unknown, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {
+    const r = res as { setHeader: (k: string, v: string) => void }
+    r.setHeader('X-Frame-Options', 'DENY')
+    r.setHeader('X-Content-Type-Options', 'nosniff')
+    r.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+    r.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    r.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+    next()
+  })
+
   app.enableCors({
     origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:38929'],
     credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 
   app.setGlobalPrefix('api/v1', { exclude: ['/api/graphql', '/api/docs'] })

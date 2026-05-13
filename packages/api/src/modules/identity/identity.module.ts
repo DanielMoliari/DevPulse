@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
 import { EncryptionService } from '../../infrastructure/crypto/encryption.service'
+import { RedisModule } from '../../infrastructure/cache/redis.module'
 import { JwtStrategy } from './application/strategies/jwt.strategy'
 import { IdentityService } from './application/services/identity.service'
 import { AuthController } from './infrastructure/http/auth.controller'
@@ -14,6 +15,7 @@ import { NotificationsModule } from '../notifications/notifications.module'
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    RedisModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

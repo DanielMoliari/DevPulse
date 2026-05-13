@@ -32,10 +32,9 @@ export class WebhooksController {
     if (!eventType) throw new BadRequestException('Missing X-GitHub-Event header')
 
     const webhookSecret = process.env['GITHUB_WEBHOOK_SECRET']
-    if (webhookSecret) {
-      if (!signature) throw new UnauthorizedException('Missing webhook signature')
-      this.verifySignature(rawBody ?? Buffer.alloc(0), signature, webhookSecret)
-    }
+    if (!webhookSecret) throw new Error('GITHUB_WEBHOOK_SECRET is not configured')
+    if (!signature) throw new UnauthorizedException('Missing webhook signature')
+    this.verifySignature(rawBody ?? Buffer.alloc(0), signature, webhookSecret)
 
     this.logger.log(`Received GitHub event: ${eventType}`)
 

@@ -34,7 +34,7 @@ import { AppService } from './app.service'
       autoSchemaFile: join(process.cwd(), 'src/graphql/schema.gql'),
       sortSchema: true,
       playground: process.env['NODE_ENV'] !== 'production',
-      introspection: true,
+      introspection: process.env['NODE_ENV'] !== 'production',
       // @as-integrations/fastify passes { request, reply } — passport-jwt only needs the request
       // expose as both `request` and `req` so guards/decorators can use either naming
       context: (ctx: { request?: unknown; req?: unknown }) => {
