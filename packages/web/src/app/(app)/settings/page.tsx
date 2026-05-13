@@ -398,13 +398,19 @@ function SettingsPageInner() {
   function renderBilling() {
     const planLabel = user?.plan ?? '...'
     const planDescription =
-      user?.plan === 'FREE' ? 'Limited to 5 tracked repositories'
-      : user?.plan === 'PRO' ? 'Up to 100 tracked repositories with full history'
-      : user?.plan === 'TEAM' ? 'Up to 500 tracked repositories + early feature access'
+      user?.plan === 'FREE' ? 'All repositories tracked · 90-day history · no credit card required'
+      : user?.plan === 'PRO' ? 'Full commit history · Year in Code · rank pills · unlimited streak freezes'
+      : user?.plan === 'TEAM' ? 'Everything in Pro · team dashboard · burnout detector · SSO'
       : ''
 
     const billingSuccess = searchParams.get('billing') === 'success'
     const billingCanceled = searchParams.get('billing') === 'canceled'
+
+    const isCanceled = user?.subscriptionStatus === 'canceled' || user?.subscriptionStatus === 'cancelled'
+    const isActive = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing'
+    const periodEnd = user?.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null
+    const periodEndFormatted = periodEnd?.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+    const intervalLabel = user?.billingInterval === 'yearly' ? 'Billed annually' : user?.billingInterval === 'monthly' ? 'Billed monthly' : null
 
     return (
       <div className="space-y-6">
@@ -419,20 +425,40 @@ function SettingsPageInner() {
           </div>
         )}
         {billingCanceled && (
-          <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
             Checkout canceled. No charges were made.
           </div>
         )}
 
-        <div className="rounded-lg border border-border-2 bg-surface p-5">
+        {/* Canceled but still active until period end */}
+        {isCanceled && periodEnd && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            Your subscription was canceled. You have access to Pro until <span className="font-semibold">{periodEndFormatted}</span>, after which your account reverts to Free.
+          </div>
+        )}
+
+        <div className="rounded-lg border border-border bg-surface p-5">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] uppercase tracking-widest text-slate-500">Current plan</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Current plan</p>
+                {user?.plan !== 'FREE' && (
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    isCanceled
+                      ? 'bg-amber-500/15 text-amber-400'
+                      : isActive
+                      ? 'bg-emerald-500/15 text-emerald-400'
+                      : 'bg-slate-500/15 text-slate-400'
+                  }`}>
+                    {isCanceled ? 'Canceled' : isActive ? 'Active' : user?.subscriptionStatus ?? ''}
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-2xl font-bold text-slate-100">{planLabel}</p>
               <p className="mt-1 text-xs text-slate-500">{planDescription}</p>
             </div>
             {user?.plan === 'FREE' ? (
-              <Button onClick={() => openUpgradeModal()} size="sm" className="cursor-pointer">
+              <Button onClick={() => openUpgradeModal()} size="sm" className="cursor-pointer shrink-0">
                 <Sparkles className="h-3.5 w-3.5" />
                 Upgrade
               </Button>
@@ -442,36 +468,45 @@ function SettingsPageInner() {
                 variant="outline"
                 size="sm"
                 disabled={loadingPortal}
-                className="cursor-pointer"
+                className="cursor-pointer shrink-0"
               >
                 {loadingPortal ? 'Loading…' : 'Manage subscription'}
               </Button>
             )}
           </div>
 
-          {user?.plan !== 'FREE' && user?.currentPeriodEnd && (
-            <div className="mt-4 border-t border-border pt-4">
-              <p className="text-[11px] text-slate-600">
-                {user.subscriptionStatus === 'active' ? 'Next billing date' : 'Period ends'}:{' '}
-                <span className="text-slate-300">
-                  {new Date(user.currentPeriodEnd).toLocaleDateString(undefined, {
-                    month: 'long', day: 'numeric', year: 'numeric',
-                  })}
-                </span>
-                {user.billingInterval && ` · billed ${user.billingInterval}`}
-              </p>
+          {user?.plan !== 'FREE' && periodEnd && (
+            <div className="mt-4 border-t border-border pt-4 flex flex-wrap gap-x-6 gap-y-1">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-600">
+                  {isCanceled ? 'Access until' : 'Next billing date'}
+                </p>
+                <p className="mt-0.5 text-xs font-medium text-slate-300">{periodEndFormatted}</p>
+              </div>
+              {intervalLabel && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-600">Billing cycle</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-300">{intervalLabel}</p>
+                </div>
+              )}
+              {user?.subscriptionStatus && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-slate-600">Status</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-300 capitalize">{user.subscriptionStatus}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {portalError && (
-          <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
             {portalError}
           </div>
         )}
 
         {billingStatus && !billingStatus.configured && (
-          <div className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
             Stripe is not configured in this environment yet. Billing controls are read-only — payments will be enabled soon.
           </div>
         )}
