@@ -44,7 +44,7 @@ export class GitHubLookupService {
         headers: {
           Accept: 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'DevPulse/1.0',
+          'User-Agent': 'reflog/1.0',
         },
       })
       if (!res.ok) return null

@@ -21,19 +21,19 @@ export class PublicProfileResolver {
     const username = query.trim()
     if (!username) return null
 
-    // 1. Check DevPulse first — richer data, streak included
-    const devpulse = await this.publicProfileService.getPublicProfile(username)
-    if (devpulse) {
+    // 1. Check reflog first — richer data, streak included
+    const reflogProfile = await this.publicProfileService.getPublicProfile(username)
+    if (reflogProfile) {
       return {
-        source: 'devpulse',
-        username: devpulse.username,
-        displayName: devpulse.displayName,
-        ...(devpulse.avatarUrl ? { avatarUrl: devpulse.avatarUrl } : {}),
-        totalCommits: devpulse.totalCommits,
-        ...(devpulse.currentStreak !== null ? { currentStreak: devpulse.currentStreak } : {}),
-        topLanguages: devpulse.topLanguages,
-        ...(devpulse.trackedRepos ? {
-          topRepos: devpulse.trackedRepos.map((r) => ({
+        source: 'reflog',
+        username: reflogProfile.username,
+        displayName: reflogProfile.displayName,
+        ...(reflogProfile.avatarUrl ? { avatarUrl: reflogProfile.avatarUrl } : {}),
+        totalCommits: reflogProfile.totalCommits,
+        ...(reflogProfile.currentStreak !== null ? { currentStreak: reflogProfile.currentStreak } : {}),
+        topLanguages: reflogProfile.topLanguages,
+        ...(reflogProfile.trackedRepos ? {
+          topRepos: reflogProfile.trackedRepos.map((r) => ({
             fullName: r.fullName,
             ...(r.language ? { language: r.language } : {}),
             stargazersCount: 0,

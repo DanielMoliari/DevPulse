@@ -1,6 +1,25 @@
 # Changelog
 
-All notable changes to DevPulse are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+All notable changes to reflog are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [0.6.0] — 2026-05-14
+
+### Security
+- JWT migrated from localStorage to httpOnly cookie — token no longer accessible to JavaScript; eliminates XSS token theft vector
+- JWT no longer exposed in OAuth callback URL — API sets `Set-Cookie` header directly; frontend receives no token in query string
+- Added `@fastify/cookie` plugin to API for cookie management
+- `JwtStrategy` now extracts JWT from `auth_token` cookie with fallback to `Authorization: Bearer` header (playground compat)
+- Logout endpoint `GET /api/v1/auth/logout` clears the cookie server-side; client calls it before redirecting
+- `ENCRYPTION_KEY` env var — AES-256-GCM key for GitHub token encryption now uses a dedicated 32-byte key instead of deriving from `JWT_SECRET` with fixed salt
+- GraphQL depth limit — `graphql-depth-limit` installed; max 8 levels of nesting enforced via `validationRules` in `app.module.ts`; prevents DoS via deeply nested queries
+- Input validation on Team/Waitlist DTOs — `JoinWaitlistInput` now has `@IsEmail @MaxLength(254)` on email, `@MaxLength(100)` on name/company, `@MaxLength(20)` on teamSize, `@IsIn([...])` on source; `CreateTeamInput` has `@MaxLength(100)` on name
+- `ENCRYPTION_KEY` added to `.env.example` with generation instructions
+
+### Changed
+- `auth/callback` page no longer reads `?token=` from URL — uses `markAuthenticated()` sessionStorage flag instead; auth state is cookie-based
+- Apollo Client uses `credentials: 'include'` so the httpOnly cookie is sent on every GraphQL request
+- `clearToken()` / `setToken()` / `getToken()` removed from `packages/web/src/lib/auth.ts`; replaced with `logout()`, `markAuthenticated()`, `clearAuthenticated()`
+- `docs/` directory removed from git tracking (was accidentally tracked; `.gitignore` already had the rule)
 
 ## [0.5.0] — 2026-05-12
 
@@ -21,7 +40,7 @@ All notable changes to DevPulse are documented here. Format follows [Keep a Chan
 - Delete account — `deleteAccount` mutation + two-step confirm in Settings → Danger zone
 - Public profile visibility toggles — `publicShowStreak` / `publicShowRepos` in Settings
 - Evolution tab on `/repos` — LanguageStream streamgraph (year-over-year language adoption)
-- Global search — command-palette style, DevPulse profile + GitHub API fallback
+- Global search — command-palette style, reflog profile + GitHub API fallback
 - Public repo analysis — `/r/[owner]/[repo]` SSR page; reachable from landing page search bar
 - Landing page repo search bar routing to `/r/[owner]/[repo]`
 - Onboarding prompt — "Track your first repo" CTA when no repos tracked

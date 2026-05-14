@@ -64,7 +64,7 @@ interface PageProps {
   params: Promise<{ username: string }>
 }
 
-async function fetchDevPulseProfile(username: string): Promise<PublicProfile | null> {
+async function fetchReflogProfile(username: string): Promise<PublicProfile | null> {
   const data = await ssrGraphQL<{ publicProfile: PublicProfile | null }>(
     PROFILE_QUERY,
     { username },
@@ -86,7 +86,7 @@ async function fetchGitHubProfile(username: string): Promise<GithubProfile | nul
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { username } = await params
-  const profile = await fetchDevPulseProfile(username)
+  const profile = await fetchReflogProfile(username)
 
   if (profile) {
     const streakBlurb = profile.currentStreak !== null && profile.currentStreak > 0
@@ -313,7 +313,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
   const { username } = await params
 
   const [profile, platformStats] = await Promise.all([
-    fetchDevPulseProfile(username),
+    fetchReflogProfile(username),
     ssrGraphQL<{ platformStats: { userCount: number; commitCount: number } }>(
       PLATFORM_STATS_QUERY,
       {},

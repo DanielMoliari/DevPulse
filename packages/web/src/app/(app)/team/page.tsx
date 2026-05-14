@@ -122,7 +122,7 @@ export default function TeamPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-slate-100 truncate">{team.name}</p>
-                      <p className="text-xs text-slate-500">devpulse.dev/team/{team.slug}</p>
+                      <p className="text-xs text-slate-500">reflog.dev/team/{team.slug}</p>
                     </div>
                     <ArrowRight className="h-4 w-4 shrink-0 text-slate-600" />
                   </div>

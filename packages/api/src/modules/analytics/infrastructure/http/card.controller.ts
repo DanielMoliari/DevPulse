@@ -14,9 +14,9 @@ export class CardController {
   @ApiOperation({
     summary: 'Embeddable SVG profile card',
     description:
-      'Returns an SVG image suitable for embedding in a GitHub README via ![](https://devpulse.app/api/v1/card/{username}). Cached by CDN for 1 hour.',
+      'Returns an SVG image suitable for embedding in a GitHub README via ![](https://reflog.dev/api/v1/card/{username}). Cached by CDN for 1 hour.',
   })
-  @ApiParam({ name: 'username', description: 'DevPulse public username' })
+  @ApiParam({ name: 'username', description: 'reflog public username' })
   @ApiProduces('image/svg+xml')
   async getCard(
     @Param('username') username: string,

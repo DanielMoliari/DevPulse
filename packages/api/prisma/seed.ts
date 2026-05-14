@@ -4,7 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
 
 const pool = new pg.Pool({
-  connectionString: process.env['DATABASE_URL'] ?? 'postgresql://devpulse:devpulse@localhost:26772/devpulse',
+  connectionString: process.env['DATABASE_URL'] ?? 'postgresql://reflog:reflog@localhost:26772/reflog',
 })
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) })
 
@@ -50,13 +50,13 @@ async function main() {
     where: { githubId: '12345678' },
     update: {
       name:      'Demo Developer',
-      email:     'demo@devpulse.app',
+      email:     'demo@reflog.dev',
       avatarUrl: 'https://avatars.githubusercontent.com/u/12345678',
     },
     create: {
       githubId:    '12345678',
       name:        'Demo Developer',
-      email:       'demo@devpulse.app',
+      email:       'demo@reflog.dev',
       avatarUrl:   'https://avatars.githubusercontent.com/u/12345678',
       githubToken: 'PLACEHOLDER_ENCRYPTED_TOKEN',
     },
@@ -66,7 +66,7 @@ async function main() {
 
   // ── 2. Repositories ───────────────────────────────────────────────────────
   const repoDefinitions = [
-    { githubRepoId: '100000001', fullName: 'demo-developer/devpulse',      language: 'TypeScript' },
+    { githubRepoId: '100000001', fullName: 'demo-developer/reflog',        language: 'TypeScript' },
     { githubRepoId: '100000002', fullName: 'demo-developer/cli-tools',     language: 'Rust' },
     { githubRepoId: '100000003', fullName: 'demo-developer/data-scripts',  language: 'Python' },
   ]

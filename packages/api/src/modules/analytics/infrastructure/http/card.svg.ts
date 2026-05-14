@@ -76,8 +76,8 @@ export function renderProfileCard(
       ? `<text x="${PAD}" y="110" font-size="13" fill="#fb923c" font-family="system-ui,-apple-system,sans-serif">&#x1F525; ${streak} day streak</text>`
       : `<text x="${PAD}" y="110" font-size="13" fill="#475569" font-family="system-ui,-apple-system,sans-serif">No active streak</text>`
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="DevPulse card for @${username}">
-  <title>DevPulse — @${username}</title>
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="reflog card for @${username}">
+  <title>reflog — @${username}</title>
 
   <!-- outer background -->
   <rect width="${W}" height="${H}" rx="12" fill="#0f0f0f" />
@@ -87,8 +87,8 @@ export function renderProfileCard(
   <!-- accent top bar -->
   <rect x="1" y="1" width="${W - 2}" height="3" rx="1.5" fill="#7c3aed" />
 
-  <!-- DevPulse label -->
-  <text x="${PAD}" y="28" font-size="11" font-weight="600" fill="#7c3aed" font-family="system-ui,-apple-system,sans-serif" letter-spacing="0.5">DevPulse</text>
+  <!-- reflog label -->
+  <text x="${PAD}" y="28" font-size="11" font-weight="600" fill="#7c3aed" font-family="system-ui,-apple-system,sans-serif" letter-spacing="0.5">reflog</text>
   <!-- username -->
   <text x="${PAD + 72}" y="28" font-size="11" fill="#475569" font-family="system-ui,-apple-system,sans-serif">@${username}</text>
 
@@ -115,7 +115,7 @@ export function renderProfileCard(
   <rect x="1" y="${H - 4}" width="${W - 2}" height="3" rx="1.5" fill="#7c3aed" opacity="0.4" />
 
   <!-- footer branding -->
-  <text x="${W / 2}" y="${H - 8}" font-size="10" fill="#334155" font-family="system-ui,-apple-system,sans-serif" text-anchor="middle">devpulse.app</text>
+  <text x="${W / 2}" y="${H - 8}" font-size="10" fill="#334155" font-family="system-ui,-apple-system,sans-serif" text-anchor="middle">reflog.dev</text>
 </svg>`
 }
 
@@ -124,14 +124,14 @@ export function renderNotFoundCard(username: string): string {
   const H = 195
   const safe = escSvg(username)
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="DevPulse — profile not found">
-  <title>DevPulse — profile not found</title>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="reflog — profile not found">
+  <title>reflog — profile not found</title>
   <rect width="${W}" height="${H}" rx="12" fill="#0f0f0f" />
   <rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="11" fill="#111111" stroke="#1e1e2e" stroke-width="1" />
-  <text x="20" y="28" font-size="11" font-weight="600" fill="#7c3aed" font-family="system-ui,-apple-system,sans-serif" letter-spacing="0.5">DevPulse</text>
+  <text x="20" y="28" font-size="11" font-weight="600" fill="#7c3aed" font-family="system-ui,-apple-system,sans-serif" letter-spacing="0.5">reflog</text>
   <text x="${W / 2}" y="${H / 2 - 8}" font-size="15" fill="#475569" font-family="system-ui,-apple-system,sans-serif" text-anchor="middle">Profile not found</text>
-  <text x="${W / 2}" y="${H / 2 + 14}" font-size="12" fill="#334155" font-family="system-ui,-apple-system,sans-serif" text-anchor="middle">@${safe} hasn&apos;t enabled a public DevPulse profile yet.</text>
+  <text x="${W / 2}" y="${H / 2 + 14}" font-size="12" fill="#334155" font-family="system-ui,-apple-system,sans-serif" text-anchor="middle">@${safe} hasn&apos;t enabled a public reflog profile yet.</text>
   <rect x="1" y="${H - 4}" width="${W - 2}" height="3" rx="1.5" fill="#7c3aed" opacity="0.4" />
-  <text x="${W / 2}" y="${H - 8}" font-size="10" fill="#334155" font-family="system-ui,-apple-system,sans-serif" text-anchor="middle">devpulse.app</text>
+  <text x="${W / 2}" y="${H - 8}" font-size="10" fill="#334155" font-family="system-ui,-apple-system,sans-serif" text-anchor="middle">reflog.dev</text>
 </svg>`
 }

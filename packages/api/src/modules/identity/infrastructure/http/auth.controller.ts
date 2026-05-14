@@ -128,14 +128,14 @@ export class AuthController {
 
   private async fetchGitHubProfile(token: string): Promise<GitHubUserResponse> {
     const userRes = await fetch('https://api.github.com/user', {
-      headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'DevPulse' },
+      headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'reflog' },
     })
     if (!userRes.ok) throw new UnauthorizedException('Failed to fetch GitHub profile')
     const user = (await userRes.json()) as GitHubUserResponse
 
     if (!user.email) {
       const emailsRes = await fetch('https://api.github.com/user/emails', {
-        headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'DevPulse' },
+        headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'reflog' },
       })
       if (emailsRes.ok) {
         const emails = (await emailsRes.json()) as GitHubEmailResponse[]

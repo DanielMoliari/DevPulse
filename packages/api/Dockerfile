@@ -6,13 +6,13 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/api/package.json ./packages/api/
 # Install only production deps for the api package
-RUN pnpm install --frozen-lockfile --filter @devpulse/api --prod
+RUN pnpm install --frozen-lockfile --filter @reflog/api --prod
 
 FROM base AS builder
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/api/package.json ./packages/api/
-RUN pnpm install --frozen-lockfile --filter @devpulse/api
+RUN pnpm install --frozen-lockfile --filter @reflog/api
 COPY packages/api ./packages/api
 COPY tsconfig.base.json ./
 WORKDIR /app/packages/api

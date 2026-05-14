@@ -9,7 +9,7 @@ import { USER_REPOSITORY, type IUserRepository } from '../../ports/user.reposito
 
 // Lowercase, alphanumeric + dash, 3-30 chars (matches GitHub-style handles)
 const USERNAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/i
-const RESERVED_USERNAMES = new Set(['admin', 'root', 'api', 'auth', 'login', 'signup', 'settings', 'dashboard', 'u', 'me', 'devpulse', 'support', 'help'])
+const RESERVED_USERNAMES = new Set(['admin', 'root', 'api', 'auth', 'login', 'signup', 'settings', 'dashboard', 'u', 'me', 'reflog', 'support', 'help'])
 
 @Injectable()
 export class IdentityService {

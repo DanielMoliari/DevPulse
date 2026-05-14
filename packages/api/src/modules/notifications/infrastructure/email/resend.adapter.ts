@@ -10,7 +10,7 @@ export class ResendAdapter implements INotificationService {
   private _resend: Resend | null = null
 
   constructor(private readonly configService: ConfigService) {
-    this.fromAddress = configService.get<string>('EMAIL_FROM', 'digest@devpulse.app')
+    this.fromAddress = configService.get<string>('EMAIL_FROM', 'digest@reflog.dev')
   }
 
   // Lazy init — Resend only matters when we actually try to send. Lets the API boot without RESEND_API_KEY in dev.
@@ -39,7 +39,7 @@ export class ResendAdapter implements INotificationService {
       await this.resend.emails.send({
         from: this.fromAddress,
         to: email,
-        subject: `Your DevPulse week in review — ${weekLabel}`,
+        subject: `Your reflog week in review — ${weekLabel}`,
         html: this.buildDigestHtml(weekLabel, summary),
       })
       this.logger.log(`Weekly digest sent to ${email}`)
@@ -128,7 +128,7 @@ export class ResendAdapter implements INotificationService {
     return `
       <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#0f0f0f;color:#e2e2e2;padding:32px;border-radius:12px;">
         <h1 style="font-size:24px;font-weight:700;margin-bottom:4px;">Week of ${weekLabel}</h1>
-        <p style="color:#888;margin-bottom:24px;">Your DevPulse summary</p>
+        <p style="color:#888;margin-bottom:24px;">Your reflog summary</p>
         <div style="display:grid;gap:12px;">
           <div style="background:#161616;border:1px solid #222;border-radius:8px;padding:16px;">
             <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.08em;">Commits</div>

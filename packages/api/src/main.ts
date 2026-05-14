@@ -48,7 +48,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter())
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('DevPulse API')
+    .setTitle('reflog API')
     .setDescription('Developer analytics API — REST endpoints (webhooks, auth). Main API is GraphQL at /api/graphql')
     .setVersion('1.0')
     .addBearerAuth()

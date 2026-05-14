@@ -1,26 +1,26 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: devpulse-db
+    container_name: reflog-db
     environment:
-      POSTGRES_USER: devpulse
-      POSTGRES_PASSWORD: devpulse
-      POSTGRES_DB: devpulse
+      POSTGRES_USER: reflog
+      POSTGRES_PASSWORD: reflog
+      POSTGRES_DB: reflog
     ports:
       - '26772:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U devpulse']
+      test: ['CMD-SHELL', 'pg_isready -U reflog']
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - devpulse
+      - reflog
 
   redis:
     image: redis:7-alpine
-    container_name: devpulse-redis
+    container_name: reflog-redis
     ports:
       - '41356:6379'
     volumes:
@@ -31,7 +31,7 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - devpulse
+      - reflog
 
   # Production image — only starts with: docker compose --profile production up
   # For local dev, run the API with: pnpm dev
@@ -44,7 +44,7 @@ services:
       - "17642:17642"
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://devpulse:devpulse@postgres:5432/devpulse
+      DATABASE_URL: postgresql://reflog:reflog@postgres:5432/reflog
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
@@ -58,11 +58,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - devpulse
+      - reflog
 
 volumes:
   postgres_data:
   redis_data:
 
 networks:
-  devpulse:
+  reflog:

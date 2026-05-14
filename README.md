@@ -1,4 +1,4 @@
-# DevPulse
+# reflog
 
 **Strava for developers — commit streaks, PR throughput, and contribution insights from your GitHub activity.**
 
@@ -56,8 +56,8 @@ The API follows **hexagonal (ports & adapters) architecture** across four bounde
 
 ```bash
 # Prerequisites: Node 22, pnpm 10, Docker
-git clone https://github.com/your-username/devpulse.git
-cd devpulse
+git clone https://github.com/your-username/reflog.git
+cd reflog
 cp .env.example .env        # fill in GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, JWT_SECRET
 docker compose up -d        # postgres + redis
 pnpm install
@@ -148,7 +148,7 @@ query Repositories {
 ## Project Structure
 
 ```
-devpulse/
+reflog/
 ├── packages/
 │   ├── api/                  # NestJS 11 + Fastify backend
 │   │   ├── src/
